@@ -1,0 +1,17 @@
+/* Page-level chrome for the standalone /work gallery - background and nav
+   clearance only. The actual gallery content (.work-title/.row/.sliders/
+   .content) reuses the shared classes from globals.css so it stays visually
+   identical to the homepage's Work section. */
+.work-gallery-page {
+  background-color: var(--color-surface);
+  padding-top: 6rem;
+  padding-bottom: 4rem;
+}
+
+@media (max-width: 1000px) {
+  /* nav stacks its links vertically below the logo at this breakpoint,
+     growing much taller - 6rem is no longer enough clearance */
+  .work-gallery-page {
+    padding-top: 14rem;
+  }
+}

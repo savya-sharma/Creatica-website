@@ -1,0 +1,111 @@
+/* Scoped to .playground-page so these (otherwise bare-tag) rules can never
+   collide with the sitewide `section` / `img` rules in globals.css. */
+
+.playground-page img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.playground-page section {
+  position: relative;
+  width: 100%;
+  display: flex;
+  background-color: #072f33;
+  overflow: hidden;
+}
+
+.playground-page .intro,
+.playground-page .outro {
+  height: 100svh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.playground-page .intro h1,
+.playground-page .outro h1 {
+  width: 60%;
+  color: var(--color-surface);
+}
+
+.playground-page .spotlight {
+  /* the sitewide `section` rule forces height:100svh - override it so this
+     section can grow to fit its (much taller) scroll-driven content */
+  height: auto;
+  flex-direction: column;
+  padding: 12rem 6rem;
+}
+
+.playground-page .spotlight-item {
+  width: 40%;
+  margin-bottom: 10rem;
+}
+
+.playground-page .spotlight-item img {
+  height: auto;
+  aspect-ratio: 4 / 5;
+}
+
+.playground-page .spotlight-item:last-child {
+  margin-bottom: 0;
+}
+
+.playground-page .spotlight-item:nth-child(odd) {
+  margin-right: auto;
+}
+
+.playground-page .spotlight-item:nth-child(even) {
+  margin-left: auto;
+}
+
+.playground-page .spotlight-item .spotlight-item-copy {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.playground-page .lottie-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100svh;
+}
+
+.playground-page .bee {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 125px;
+  height: 125px;
+  will-change: transform;
+}
+
+.playground-page .bee-shadow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 115px;
+  height: 115px;
+  filter: brightness(0) blur(2px);
+  opacity: 0.5;
+  will-change: transform, opacity;
+}
+
+@media (max-width: 1000px) {
+  .playground-page .intro h1,
+  .playground-page .outro h1 {
+    width: 90%;
+    font-size: 2rem;
+  }
+
+  .playground-page .spotlight {
+    padding: 12rem 2rem;
+  }
+
+  .playground-page .spotlight-item {
+    width: 60%;
+  }
+}

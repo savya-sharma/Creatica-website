@@ -1,0 +1,16 @@
+export const projects = [
+  { name: 'Dorixa', direction: 'Pastoral Identity System', image: '/BrandsImg/img1.jpg', demo: '#' },
+  { name: 'Frosty Delight', direction: 'Editorial Art Direction', image: '/BrandsImg/img2.jpg', demo: '#' },
+  { name: 'Dairy Food', direction: 'Packaging & Print', image: '/BrandsImg/img3.jpg', demo: '#' },
+  { name: 'Milk Bell', direction: 'Digital Brand Language', image: '/BrandsImg/img4.jpg', demo: '#' },
+  { name: 'Frost Byte', direction: 'Visual Identity', image: '/BrandsImg/img5.jpg', demo: '#' },
+  { name: 'Aurevon', direction: 'Motion & Type', image: '/BrandsImg/img6.jpg', demo: '#' },
+  { name: 'Madhuvan', direction: 'Campaign Direction', image: '/BrandsImg/img7.jpg', demo: '#' },
+  { name: 'Frost Chill', direction: 'Brand Strategy', image: '/BrandsImg/img8.jpg', demo: '#' },
+  { name: 'Northarc Venture', direction: 'Retail Experience', image: '/BrandsImg/img9.jpg', demo: '#' },
+  { name: 'Creamroo', direction: 'Art Direction & Film', image: '/BrandsImg/img10.jpg', demo: '#' },
+  { name: 'Diabo Milk', direction: 'Identity Overhaul', image: '/BrandsImg/img11.jpg', demo: '#' },
+  { name: 'Divyam', direction: 'Editorial Design', image: '/BrandsImg/img12.jpg', demo: '#' },
+  { name: 'Himchill', direction: 'Digital Product Design', image: '/BrandsImg/img13.jpg', demo: '#' },
+  { name: 'Dev', direction: 'Full Brand System', image: '/BrandsImg/img14.jpg', demo: '#' },
+];

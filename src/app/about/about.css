@@ -1,0 +1,162 @@
+/* Scoped to .about-page so nothing here can collide with sitewide rules.
+   The 21rem margin-left values are the extra offset, on top of the page's
+   own 2rem side padding, that lines up .about-intro and .about-founder-copy
+   at the same left edge - matching the reference's indented text column,
+   while .about-owner-pic sits at the page's own outer edge. */
+
+.about-page {
+  position: relative;
+  background-color: var(--color-text);
+  padding: 8rem 2rem 8rem;
+}
+
+.about-meta-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 7rem;
+}
+
+.about-meta {
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--color-surface);
+  opacity: 0.7;
+  text-align: left;
+}
+
+.about-meta-right {
+  text-align: right;
+}
+
+.about-intro {
+  display: block;
+  max-width: 46rem;
+  margin: 0 0 8rem 21rem;
+  font-size: 1.15rem;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: normal;
+  text-align: justify;
+  color: var(--color-surface);
+}
+
+.about-founder {
+  display: flex;
+}
+
+.about-owner-pic {
+  flex: 0 0 auto;
+  width: 10.5rem;
+  height: 10.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background-color: var(--color-surface);
+}
+
+.about-owner-pic span {
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--color-text);
+}
+
+.about-founder-copy {
+  flex: 1;
+  max-width: 46rem;
+  margin-left: 10.5rem; /* + owner-pic's own 10.5rem width = 21rem, matching .about-intro's indent */
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.about-founder-label {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--color-surface);
+}
+
+.about-founder-copy p {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: normal;
+  text-align: justify;
+  color: var(--color-surface);
+}
+
+.about-page .slider {
+  position: relative;
+  width: calc(100% + 4rem);
+  margin: 8rem -2rem 0;
+  height: 100svh;
+  overflow: hidden;
+}
+
+.about-page .slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform, width, height;
+}
+
+.about-page .slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.about-page #slide-title {
+  position: absolute;
+  bottom: 25svh;
+  left: 50%;
+  transform: translateX(-50%);
+  font-weight: 500;
+  color: var(--color-surface);
+}
+
+@media (max-width: 1000px) {
+  /* nav stacks its links vertically below the logo at this breakpoint,
+     growing much taller - the old 10rem clearance is no longer enough */
+  .about-page {
+    padding: 14rem 1.5rem 6rem;
+  }
+
+  .about-intro {
+    max-width: none;
+    margin-left: 0;
+  }
+
+  .about-founder {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .about-founder-copy {
+    margin-left: 0;
+    max-width: none;
+  }
+
+  /* .about-page's own side padding shrinks to 1.5rem here, so the slider's
+     full-bleed margin has to match or it pokes past the true viewport edge */
+  .about-page .slider {
+    width: calc(100% + 3rem);
+    margin: 6rem -1.5rem 0;
+  }
+}
+
+@media (max-width: 640px) {
+  /* the desktop gaps between the meta row / intro / founder story were
+     sized for a much wider text column running alongside a tall viewport;
+     stacked full-width on a phone they read as oversized dead space */
+  .about-meta-row {
+    margin-bottom: 3rem;
+  }
+
+  .about-intro {
+    margin-bottom: 3.5rem;
+  }
+}
