@@ -175,7 +175,7 @@ export default function Brands() {
   return (
     <div className="work-section">
       <header className="page-header">
-        <h1>Our Work</h1>
+        <h1>Brands</h1>
       </header>
 
       <div className="overlay" ref={overlayRef}>

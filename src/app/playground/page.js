@@ -1,6 +1,6 @@
-import "./playground.css";
-import Playground from "@/components/Playground";
+import "../work/work-bee.css";
+import WorkBee from "@/components/WorkBee";
 
 export default function PlaygroundPage() {
-  return <Playground />;
+  return <WorkBee />;
 }

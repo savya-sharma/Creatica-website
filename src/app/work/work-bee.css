@@ -1,0 +1,125 @@
+/* Scoped to .work-bee-page so these (otherwise bare-tag) rules can never
+   collide with the sitewide `section` / `img` rules in globals.css. */
+
+.work-bee-page img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.work-bee-page section {
+  position: relative;
+  width: 100%;
+  display: flex;
+  background-color: #072f33;
+  overflow: hidden;
+}
+
+.work-bee-page .intro,
+.work-bee-page .outro {
+  height: 100svh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.work-bee-page .intro h1,
+.work-bee-page .outro h1 {
+  width: 60%;
+  color: var(--color-surface);
+  font-size: 3rem;
+}
+
+.work-bee-page .spotlight {
+  /* the sitewide `section` rule forces height:100svh - override it so this
+     section can grow to fit its (much taller) scroll-driven content */
+  height: auto;
+  flex-direction: column;
+  padding: 12rem 6rem;
+}
+
+.work-bee-page .spotlight-item {
+  width: 40%;
+  margin-bottom: 10rem;
+}
+
+/* the project mockups here are a genuine mix of aspect ratios (landscape
+   business cards, square product shots, etc.), unlike a uniform portrait
+   photo set - forcing them into one fixed box cropped most of them badly.
+   height: auto lets each image keep its own natural proportions instead */
+.work-bee-page .spotlight-item img {
+  height: auto;
+  object-fit: contain;
+}
+
+.work-bee-page .spotlight-item:last-child {
+  margin-bottom: 0;
+}
+
+.work-bee-page .spotlight-item:nth-child(odd) {
+  margin-right: auto;
+}
+
+.work-bee-page .spotlight-item:nth-child(even) {
+  margin-left: auto;
+}
+
+.work-bee-page .spotlight-item .spotlight-item-copy {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.work-bee-page .lottie-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100svh;
+}
+
+.work-bee-page .bee {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* 2x the original 125px - WorkBee.jsx reads this element's actual
+     rendered size at runtime (BEE_SIZE), rather than a hardcoded value,
+     so the laptop-only bump below is the single source of truth */
+  width: 250px;
+  height: 250px;
+  will-change: transform;
+}
+
+/* the WebGL canvas rendering the flying-robot model, sized to fill .bee */
+.work-bee-page .bee canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 1000px) {
+  .work-bee-page .intro h1,
+  .work-bee-page .outro h1 {
+    width: 90%;
+    font-size: 2rem;
+  }
+
+  .work-bee-page .spotlight {
+    padding: 12rem 2rem;
+  }
+
+  .work-bee-page .spotlight-item {
+    width: 60%;
+  }
+}
+
+/* laptop screens only - above the sitewide tablet breakpoint (1000px) and
+   up to a typical laptop display width; larger desktop monitors keep the
+   base 250px size unchanged */
+@media (min-width: 1001px) and (max-width: 1440px) {
+  .work-bee-page .bee {
+    width: 320px;
+    height: 320px;
+  }
+}

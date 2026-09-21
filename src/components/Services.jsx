@@ -3,9 +3,11 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { InertiaPlugin } from "gsap/InertiaPlugin";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { SplitText } from "gsap/SplitText";
 import { onLenisReady } from "@/lib/lenis";
 
-gsap.registerPlugin(InertiaPlugin);
+gsap.registerPlugin(InertiaPlugin, ScrollTrigger, SplitText);
 
 const SERVICES = [
   {
@@ -72,8 +74,64 @@ const MAX_VELOCITY = 900; // px/sec clamp fed into InertiaPlugin
 const INERTIA_RESISTANCE = 300; // higher = decelerates and settles sooner
 
 export default function Services() {
+  const sectionRef = useRef(null);
   const viewportRef = useRef(null);
   const trackRef = useRef(null);
+
+  // premium bottom-to-top masked line reveal for the section's own text
+  // (title, card headings, card list items) - fully separate from the
+  // marquee effect below so neither can interfere with the other
+  useEffect(() => {
+    const container = sectionRef.current;
+    if (!container) return;
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    // guards against the scroll reveal re-hiding/replaying text that has
+    // already been shown once, if autoSplit re-splits later (resize, a web
+    // font finishing its load, etc.)
+    let hasPlayed = false;
+
+    const split = SplitText.create(
+      Array.from(
+        container.querySelectorAll(".services-title, .service-card h3, .service-card li")
+      ),
+      {
+        type: "lines",
+        mask: "lines",
+        autoSplit: true,
+        onSplit(self) {
+          if (prefersReducedMotion || hasPlayed) {
+            gsap.set(self.lines, { yPercent: 0 });
+            return;
+          }
+
+          gsap.set(self.lines, { yPercent: 110 });
+
+          return gsap.to(self.lines, {
+            yPercent: 0,
+            duration: 1,
+            ease: "power3.out",
+            stagger: 0.05,
+            scrollTrigger: {
+              trigger: container,
+              start: "top 75%",
+              once: true,
+              onEnter: () => {
+                hasPlayed = true;
+              },
+            },
+          });
+        },
+      }
+    );
+
+    return () => {
+      split.revert();
+    };
+  }, []);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -176,7 +234,7 @@ export default function Services() {
   }, []);
 
   return (
-    <div className="services">
+    <div className="services" ref={sectionRef}>
       <h2 className="services-title">Services</h2>
 
       <div className="services-grid">
@@ -192,9 +250,9 @@ export default function Services() {
         ))}
       </div>
 
-      <div className="marquee" ref={viewportRef}>
+      {/* <div className="marquee" ref={viewportRef}>
         <div className="marquee-track" ref={trackRef}></div>
-      </div>
+      </div> */}
     </div>
   );
 }

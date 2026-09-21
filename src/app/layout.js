@@ -1,4 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "lenis/dist/lenis.css";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
@@ -27,6 +28,14 @@ export default function RootLayout({ children }) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* the browser's own scroll-restoration-on-reload is what causes a
+            reload to snap back to whatever section you were scrolled to -
+            turning it off here, before hydration, is the actual root cause
+            fix (a reload then just starts at the top like any fresh
+            navigation) rather than fighting it with a delayed scrollTo */}
+        <Script id="disable-scroll-restoration" strategy="beforeInteractive">
+          {"try{if('scrollRestoration' in history){history.scrollRestoration='manual';}}catch(e){}"}
+        </Script>
         <SmoothScroll />
         <Navbar />
         {children}

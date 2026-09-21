@@ -2,55 +2,120 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { SplitText } from "gsap/SplitText";
+import FooterInfoGrid from "./FooterInfoGrid";
+import CornerDownRightIcon from "./icons/CornerDownRightIcon";
+
+gsap.registerPlugin(ScrollTrigger, SplitText);
 
 export default function Footer() {
-  const logoRef = useRef(null);
+  const footerRef = useRef(null);
   const pathname = usePathname();
-  const isDark =
-    pathname?.startsWith("/playground") || pathname?.startsWith("/about");
+  // the Contact page builds this same closing block into its own
+  // scrollable column (it has its own independent scroll container, not
+  // the page scroll), so the site-wide footer would just be dead,
+  // unreachable content sitting below it
+  const hideOnContactPage = pathname?.startsWith("/contact");
 
+  // same masked bottom-to-top line reveal used elsewhere on the site,
+  // triggered once when the footer itself scrolls into view
   useEffect(() => {
-    const el = logoRef.current;
-    if (!el) return;
+    const footer = footerRef.current;
+    if (!footer) return;
 
-    const BASE_SIZE = 100;
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
 
-    const fit = () => {
-      el.style.fontSize = `${BASE_SIZE}px`;
-      const scale = window.innerWidth / el.scrollWidth;
-      el.style.fontSize = `${BASE_SIZE * scale}px`;
+    const elements = Array.from(
+      footer.querySelectorAll(
+        ".site-footer-heading, .site-footer-blurb, .site-footer-col h3, .site-footer-col p:not(.site-footer-email), .site-footer-col li a"
+      )
+    );
+    if (!elements.length) return;
+
+    // guards against the reveal re-hiding/replaying text that has already
+    // been shown once, if autoSplit re-splits later (resize, a web font
+    // finishing its load, etc.)
+    let hasPlayed = false;
+
+    const split = SplitText.create(elements, {
+      type: "lines",
+      mask: "lines",
+      autoSplit: true,
+      onSplit(self) {
+        if (prefersReducedMotion || hasPlayed) {
+          gsap.set(self.lines, { yPercent: 0 });
+          return;
+        }
+
+        gsap.set(self.lines, { yPercent: 110 });
+
+        return gsap.to(self.lines, {
+          yPercent: 0,
+          duration: 1,
+          ease: "power3.out",
+          stagger: 0.05,
+          scrollTrigger: {
+            trigger: footer,
+            start: "top 75%",
+            once: true,
+            onEnter: () => {
+              hasPlayed = true;
+            },
+          },
+        });
+      },
+    });
+
+    return () => {
+      split.revert();
     };
-
-    // the custom font (mainfont) loads asynchronously; measuring before it's
-    // ready fits against fallback-font metrics and leaves the wordmark
-    // undersized once the real font swaps in
-    document.fonts.ready.then(fit);
-    fit();
-
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
   }, []);
 
+  if (hideOnContactPage) return null;
+
   return (
-    <footer className={`site-footer${isDark ? " site-footer--dark" : ""}`}>
-      <div className="footer-top">
-        <div className="footer-social">
-          <a href="#">Instagram</a>
-          <a href="#">LinkedIn</a>
+    <footer className="site-footer" ref={footerRef}>
+      <div className="site-footer-cta">
+        <div className="site-footer-cta-main">
+          <h2 className="site-footer-heading">
+            <em>Let&apos;s</em> Build
+            <br />
+            <span className="site-footer-arrow">
+              <CornerDownRightIcon />
+            </span>{" "}
+            Something
+            <br />
+            Meaningful
+          </h2>
+
+          <a className="site-footer-button" href="mailto:hello@creaticacrown.com">
+            Start Project <span>&rarr;</span>
+          </a>
         </div>
 
-        <div className="footer-email">
-          <a href="mailto:Creaticacrown@gmail.com">Creaticacrown@gmail.com</a>
-        </div>
+        <div className="site-footer-info">
+          <p className="site-footer-blurb">
+            Have an idea, a product, or a vision? We&apos;d
+            <br />
+            love to help you bring it to life
+          </p>
 
-        <div className="footer-year">
-          <span>&copy;2026</span>
+          <FooterInfoGrid />
         </div>
       </div>
 
-      <h2 className="footer-logo" ref={logoRef}>
-        CreaticaCrown
-      </h2>
+      <div className="site-footer-bottom">
+        <span>&copy; 2025-{new Date().getFullYear()}. All rights reserved</span>
+        <div className="site-footer-bottom-links">
+          <Link href="/policy">Terms of Services</Link>
+          <Link href="/policy?tab=privacy">Privacy Policy</Link>
+        </div>
+      </div>
     </footer>
   );
 }

@@ -1,111 +1,143 @@
 /* Scoped to .playground-page so these (otherwise bare-tag) rules can never
    collide with the sitewide `section` / `img` rules in globals.css. */
 
-.playground-page img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.playground-page {
+  background-color: #fff;
 }
 
-.playground-page section {
-  position: relative;
+.playground-page .orbit-slider {
+  position: fixed;
+  inset: 0;
   width: 100%;
-  display: flex;
-  background-color: #072f33;
+  height: 100svh;
+  /* the sitewide Footer is rendered unconditionally after every page's
+     content (see RootLayout) and is itself position: relative, putting it
+     in the same default stacking tier as an unindexed fixed element - and
+     later in the DOM, so it would win that tie and paint over this. An
+     explicit z-index above Footer's or below nav's (see globals.css) fixes
+     that */
+  z-index: 2;
+  perspective: 2000px;
+  background: #fff;
   overflow: hidden;
 }
 
-.playground-page .intro,
-.playground-page .outro {
-  height: 100svh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-}
-
-.playground-page .intro h1,
-.playground-page .outro h1 {
-  width: 60%;
-  color: var(--color-surface);
-}
-
-.playground-page .spotlight {
-  /* the sitewide `section` rule forces height:100svh - override it so this
-     section can grow to fit its (much taller) scroll-driven content */
-  height: auto;
-  flex-direction: column;
-  padding: 12rem 6rem;
-}
-
-.playground-page .spotlight-item {
-  width: 40%;
-  margin-bottom: 10rem;
-}
-
-.playground-page .spotlight-item img {
-  height: auto;
-  aspect-ratio: 4 / 5;
-}
-
-.playground-page .spotlight-item:last-child {
-  margin-bottom: 0;
-}
-
-.playground-page .spotlight-item:nth-child(odd) {
-  margin-right: auto;
-}
-
-.playground-page .spotlight-item:nth-child(even) {
-  margin-left: auto;
-}
-
-.playground-page .spotlight-item .spotlight-item-copy {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 1rem;
-}
-
-.playground-page .lottie-container {
-  position: fixed;
-  top: 0;
-  left: 0;
+.playground-page .orbit-stage {
+  position: absolute;
   width: 100%;
-  height: 100svh;
+  height: 100%;
+  transform-style: preserve-3d;
 }
 
-.playground-page .bee {
+.playground-page .orbit-ring {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 125px;
-  height: 125px;
-  will-change: transform;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* width follows from height via aspect-ratio (unchanged: 180x225 here
+     computes to the exact original 180px) - the mobile/tablet media query
+     below only has to override the one value */
+  aspect-ratio: 180 / 225;
+  height: 225px;
+  transform-style: preserve-3d;
 }
 
-.playground-page .bee-shadow {
+.playground-page .orbit-panel {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 115px;
-  height: 115px;
-  filter: brightness(0) blur(2px);
-  opacity: 0.5;
-  will-change: transform, opacity;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
+.playground-page .orbit-panel img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.playground-page .orbit-preview {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* width follows from height via aspect-ratio (unchanged: 450x565 here
+     computes to the exact original 450px) - the mobile/tablet media query
+     below only has to override the one value */
+  aspect-ratio: 450 / 565;
+  height: 565px;
+  overflow: hidden;
+}
+
+.playground-page .orbit-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.playground-page .orbit-title {
+  position: fixed;
+  bottom: 3rem;
+  left: 50%;
+  transform: translate(-50%, 0);
+  font-family: "IBM", monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background-color: #000;
+  color: #fff;
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+  z-index: 2;
+}
+
+/* the ring/preview are sized for the desktop composition this was designed
+   at - below the tablet breakpoint they scale down fluidly instead of
+   jumping between a couple of fixed sizes tuned for one or two specific
+   phones. Each height is the smaller of a width-relative and a
+   height-relative share of the viewport (via min()), so a short/landscape
+   phone shrinks the carousel by its available height instead of
+   overflowing vertically, while a narrow/portrait phone shrinks it by
+   width instead of running edge-to-edge. clamp()'s own min/max bounds keep
+   it from ever growing past the tablet size above or below a legible
+   floor. JS (see Playground.jsx) reads the ring's actual rendered size off
+   this and scales the 3D orbit radius/perspective to match, so the effect
+   never changes proportions, only overall scale. */
 @media (max-width: 1000px) {
-  .playground-page .intro h1,
-  .playground-page .outro h1 {
-    width: 90%;
-    font-size: 2rem;
+  /* the mobile nav wraps onto several stacked lines at narrow widths
+     (see globals.css) - centering purely on 50% of the viewport height
+     pushes a tall-enough preview box up into that stacked nav on short
+     phones. Nudging the shared center point down (both elements move
+     together, or the ring's front-facing panel would drift out of
+     alignment with the preview behind it) keeps clear of it without
+     needing to know the nav's exact height */
+  .playground-page .orbit-ring,
+  .playground-page .orbit-preview {
+    top: 58%;
   }
 
-  .playground-page .spotlight {
-    padding: 12rem 2rem;
+  .playground-page .orbit-ring {
+    height: clamp(90px, min(24vw, 18svh), 225px);
   }
 
-  .playground-page .spotlight-item {
-    width: 60%;
+  .playground-page .orbit-preview {
+    height: clamp(200px, min(62vw, 45svh), 425px);
+  }
+
+  .playground-page .orbit-title {
+    bottom: 2rem;
+  }
+
+  /* drag-to-rotate is JS-driven (see Playground.jsx's touchmove handler,
+     which calls preventDefault()) - touch-action:none is the CSS-level
+     half of that: without it, some browsers can start their own native
+     scroll/pan gesture the instant a finger moves, before JS's
+     preventDefault ever gets a chance to cancel it. Desktop never reads
+     touch-action for mouse/wheel input, but this still stays inside the
+     mobile/tablet breakpoint so it can never affect desktop even in
+     principle (e.g. a touchscreen laptop) */
+  .playground-page .orbit-slider {
+    touch-action: none;
   }
 }

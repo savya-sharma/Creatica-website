@@ -1,0 +1,272 @@
+/* Scoped to .contact-page so nothing here collides with sitewide rules. */
+
+.contact-page {
+  position: relative;
+  background-color: var(--color-surface);
+}
+
+.contact-left {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.contact-left img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.contact-right {
+  margin-left: 50%;
+  min-height: 100vh;
+}
+
+.contact-right-inner {
+  padding: 6rem 3rem 4rem;
+  max-width: 40rem;
+}
+
+.contact-heading {
+  margin: 0 0 1.5rem;
+  font-family: "AppleRegular", sans-serif;
+  font-weight: 500;
+  font-size: clamp(2.25rem, 1.5rem + 3vw, 3.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.contact-heading em {
+  font-family: "Apply", serif;
+  font-style: italic;
+  font-weight: 400;
+  text-transform: none;
+}
+
+.contact-subtitle {
+  margin: 0 0 3rem;
+  font-family: "IBM", monospace;
+  font-size: 0.9rem;
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.7;
+  color: var(--color-text);
+  opacity: 0.7;
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+  margin-bottom: 5rem;
+}
+
+.contact-field {
+  display: grid;
+  grid-template-columns: minmax(9rem, 30%) 1fr;
+  gap: 1.5rem;
+}
+
+.contact-field--divider {
+  border-top: 1px solid rgba(7, 47, 51, 0.25);
+  padding-top: 1.75rem;
+}
+
+.contact-field-label {
+  font-family: "PP Neue", sans-serif;
+  font-size: 1rem;
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+  padding-top: 0.15rem;
+}
+
+.contact-field-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.contact-radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-family: "AppleRegular", sans-serif;
+  font-size: 1.2rem;
+  font-weight: 300;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.contact-field-options--lines .contact-radio-option:not(:last-child) {
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(7, 47, 51, 0.25);
+}
+
+.contact-radio {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 0.95rem;
+  height: 0.95rem;
+  margin: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-text);
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+}
+
+.contact-radio::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background-color: var(--color-text);
+  transform: scale(0);
+  transition: transform 0.15s ease;
+}
+
+.contact-radio:checked::before {
+  transform: scale(1);
+}
+
+.contact-input {
+  width: 100%;
+  appearance: none;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(7, 47, 51, 0.25);
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+  padding: 0.5rem 0;
+  font-family: "PP Neue", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 300;
+  color: var(--color-text);
+}
+
+.contact-input::placeholder {
+  font-family: "PP Neue", sans-serif;
+  color: var(--color-text);
+  opacity: 0.45;
+}
+
+.contact-input:focus {
+  border-bottom-color: var(--color-text);
+}
+
+.contact-textarea {
+  resize: vertical;
+  min-height: 4.5rem;
+  line-height: 1.6;
+  font-family: "PP Neue", sans-serif;
+  scrollbar-width: none;
+}
+
+.contact-textarea::-webkit-scrollbar {
+  display: none;
+}
+
+.contact-submit {
+  align-self: flex-start;
+  border: none;
+  cursor: pointer;
+  background-color: #072f33;
+  color: var(--color-surface);
+}
+
+.contact-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.contact-form-status {
+  margin: 0;
+  font-family: "IBM", monospace;
+  font-size: 0.85rem;
+  font-weight: 300;
+  line-height: 1.6;
+}
+
+.contact-form-status--success {
+  color: var(--color-text);
+}
+
+.contact-form-status--error {
+  color: #b3413f;
+}
+
+.contact-alt-heading {
+  margin: 0 0 2.5rem;
+  font-family: "AppleRegular", sans-serif;
+  font-weight: 400;
+  font-size: clamp(1.75rem, 1.3rem + 1.8vw, 2.5rem);
+  color: var(--color-text);
+}
+
+/* the shared FooterInfoGrid/site-footer-bottom pieces default to light text
+   for use on the dark site-wide footer - this page has a light background */
+.contact-page .site-footer-grid {
+  margin-bottom: 3rem;
+}
+
+.contact-page .site-footer-col a,
+.contact-page .site-footer-col p,
+.contact-page .site-footer-col button {
+  color: var(--color-text);
+}
+
+.contact-page .site-footer-bottom {
+  color: var(--color-text);
+  border-top-color: rgba(7, 47, 51, 0.15);
+}
+
+.contact-page .site-footer-bottom-links a {
+  color: var(--color-text);
+}
+
+@media (max-width: 1000px) {
+  .contact-left {
+    position: static;
+    width: 100%;
+    height: 45svh;
+  }
+
+  .contact-right {
+    margin-left: 0;
+    min-height: 0;
+  }
+
+  .contact-right-inner {
+    padding: 3rem 1.5rem 4rem;
+    max-width: none;
+  }
+
+  .contact-field {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .contact-left {
+    height: 35svh;
+  }
+
+  .contact-right-inner {
+    padding: 2.5rem 1.25rem 3rem;
+  }
+
+  .contact-form {
+    gap: 1.75rem;
+    margin-bottom: 3.5rem;
+  }
+}

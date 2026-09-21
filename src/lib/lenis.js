@@ -11,7 +11,7 @@ export function onLenisReady(callback) {
   if (lenisStore.instance) {
     callback(lenisStore.instance);
     return () => {};
-  }
+  } 
 
   const handleReady = (e) => callback(e.detail);
   window.addEventListener(LENIS_READY_EVENT, handleReady);
