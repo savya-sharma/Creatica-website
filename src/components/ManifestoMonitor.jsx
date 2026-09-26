@@ -7,8 +7,9 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { vertexShader, fragmentShader } from "./shaders/monitorDisplayShader";
 import { projects } from "@/data/projects";
+import { whenIdle } from "@/lib/whenIdle";
 
-const DEFAULT_DISPLAY_IMAGE = "/BrandsImg/DEFAULT-IMG.webp";
+const DEFAULT_DISPLAY_IMAGE = "/BrandsImg/DEFAULT-IMG-2048.webp";
 const MONITOR_PROJECTS = projects.map((project) => ({
   name: project.name,
   image: project.image,
@@ -46,10 +47,10 @@ export default function ManifestoMonitor() {
   const containerRef = useRef(null);
   const listRef = useRef(null);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    const listEl = listRef.current;
-    if (!container || !listEl) return;
+  // Everything below - renderer, PMREM environment, monitor.glb, textures -
+  // used to run synchronously the moment Home mounted, ahead of the hero
+  // being usable. It now runs from idle time (see the effect after this).
+  function initMonitor(container, listEl) {
 
     let disposed = false;
     let frameId = null;
@@ -406,6 +407,21 @@ export default function ManifestoMonitor() {
         container.removeChild(renderer.domElement);
       }
     };
+  }
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const listEl = listRef.current;
+    if (!container || !listEl) return undefined;
+    let teardown = null;
+    const cancelIdle = whenIdle(() => {
+      teardown = initMonitor(container, listEl);
+    });
+    return () => {
+      cancelIdle();
+      teardown?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // the list is a sibling of the canvas container, not nested inside it,

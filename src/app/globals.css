@@ -29,6 +29,7 @@
   --foreground: var(--color-text);
 }
 
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -98,6 +99,22 @@ nav {
   object-fit: contain;
 }
 
+.crown-burst-layer {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 11;
+}
+
+.crown-particle {
+  position: absolute;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  will-change: transform, opacity;
+}
+
 .nav-dark .nav-logo img {
   filter: invert(1);
 }
@@ -107,12 +124,386 @@ nav {
   margin: 0;
 }
 
-.nav-links {
-  flex: 0 0 auto;
+/* menu used on every screen size. The trigger and the dropdown are ONE
+   liquid-glass surface (.nav-menu-glass): a rectangle that is the trigger's
+   square when closed, widens, then drops. Purple light drifts inside it at
+   full-menu size, clipped by the glass, so opening just uncovers more of
+   the same material. The wrapper is only trigger-height, so the open menu
+   floats over the page and never affects layout.
+   Every look knob is a --menu-* variable below. */
+.nav-menu {
+  /* dark text on the (light) glass; flipped for the dark pages below */
+  --menu-fg: var(--color-text);
+  --menu-s: clamp(2.5rem, 2rem + 1.4vw, 3.25rem);
+  --menu-radius: 0.4rem;
+  --menu-w: min(21rem, max(15rem, calc(100vw - 2 * var(--nav-pad-x, 2.5rem) - 8rem)));
+
+  /* clear glass: only a whisper of tint, the page shows through the blur */
+  --menu-glass-base: rgba(255, 255, 255, 0.14);
+  --menu-glass-sheen: rgba(255, 255, 255, 0.22);
+  --menu-glass-blur: 14px;
+  --menu-glass-saturate: 160%;
+  --menu-glass-border: rgba(232, 222, 255, 0.6);
+  --menu-glass-highlight: rgba(255, 255, 255, 0.6);
+  --menu-glass-shadow: rgba(60, 40, 120, 0.2);
+  --menu-glass-outer-glow: rgba(88, 106, 107, 0.14);
+  /* the moving light is the site's slate green (#586a6b), kept low and soft;
+     the names are historical - violet = main, lilac = lighter, indigo = deeper */
+  --menu-light-violet: rgba(88, 106, 107, 0.5);
+  --menu-light-lilac: rgba(140, 158, 159, 0.34);
+  --menu-light-indigo: rgba(64, 84, 85, 0.42);
+  /* 1 = the base drift (43s to 113s per cycle); raise to slow it further */
+  --menu-light-slowness: 1;
+
+  position: absolute;
+  top: 1rem;
+  right: var(--nav-pad-x, 2.5rem);
+  width: var(--menu-w);
+  height: var(--menu-s);
+  z-index: 12;
+}
+
+.nav-dark .nav-menu {
+  --menu-fg: var(--color-surface);
+  --menu-glass-base: rgba(255, 255, 255, 0.05);
+  --menu-glass-sheen: rgba(255, 255, 255, 0.12);
+  --menu-glass-border: rgba(214, 200, 255, 0.4);
+  --menu-glass-highlight: rgba(255, 255, 255, 0.3);
+  --menu-glass-shadow: rgba(0, 0, 0, 0.35);
+  --menu-light-violet: rgba(88, 106, 107, 0.7);
+  --menu-light-lilac: rgba(140, 158, 159, 0.36);
+  --menu-light-indigo: rgba(88, 106, 107, 0.55);
+}
+
+.nav-menu-glass {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--menu-s);
+  height: var(--menu-s);
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: var(--menu-radius);
+  border: 1px solid var(--menu-glass-border);
+  background:
+    linear-gradient(160deg, var(--menu-glass-sheen), transparent 45%),
+    var(--menu-glass-base);
+  -webkit-backdrop-filter: blur(var(--menu-glass-blur))
+    saturate(var(--menu-glass-saturate));
+  backdrop-filter: blur(var(--menu-glass-blur))
+    saturate(var(--menu-glass-saturate));
+  box-shadow:
+    inset 0 1px 0 var(--menu-glass-highlight),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 24px rgba(216, 190, 255, 0.1),
+    0 22px 46px -18px var(--menu-glass-shadow),
+    0 0 28px var(--menu-glass-outer-glow);
+}
+
+/* full-menu-size light field, anchored top-right; the glass reveals it */
+.nav-menu-light {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--menu-w);
+  height: var(--menu-full-h, calc(var(--menu-s) * 6));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.nav-menu-blob {
+  position: absolute;
+  display: block;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  will-change: transform;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+.nav-menu-blob-a {
+  width: 95%;
+  top: -38%;
+  right: -30%;
+  background: radial-gradient(circle, var(--menu-light-violet), transparent 62%);
+  animation-name: menu-drift-a;
+  animation-duration: calc(43s * var(--menu-light-slowness));
+  animation-delay: -11s;
+}
+
+.nav-menu-blob-b {
+  width: 100%;
+  bottom: -45%;
+  left: -30%;
+  background: radial-gradient(circle, var(--menu-light-indigo), transparent 62%);
+  animation-name: menu-drift-b;
+  animation-duration: calc(61s * var(--menu-light-slowness));
+  animation-delay: -23s;
+}
+
+.nav-menu-blob-c {
+  width: 70%;
+  top: 20%;
+  left: 15%;
+  background: radial-gradient(circle, var(--menu-light-lilac), transparent 64%);
+  animation-name: menu-drift-c;
+  animation-duration: calc(79s * var(--menu-light-slowness));
+  animation-delay: -37s;
+}
+
+/* oversized so rotating it never uncovers an edge; a full turn returns the
+   identical picture, so it loops without a visible seam */
+.nav-menu-blob-swirl {
+  width: 190%;
+  top: -45%;
+  right: -70%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(140, 158, 159, 0.16) 50deg,
+    transparent 110deg,
+    rgba(88, 106, 107, 0.14) 200deg,
+    transparent 260deg,
+    rgba(140, 158, 159, 0.12) 320deg,
+    transparent 360deg
+  );
+  /* keeps the cone's pinch point out of sight */
+  -webkit-mask-image: radial-gradient(circle, transparent 14%, #000 42%);
+  mask-image: radial-gradient(circle, transparent 14%, #000 42%);
+  animation-name: menu-swirl;
+  animation-duration: calc(113s * var(--menu-light-slowness));
+  animation-timing-function: linear;
+  animation-direction: normal;
+}
+
+/* soft edge light under the trigger, where it joins the dropdown */
+.nav-menu-edge {
+  position: absolute;
+  top: calc(var(--menu-s) * 0.1);
+  right: 0;
+  width: 70%;
+  height: calc(var(--menu-s) * 1.8);
+  background: radial-gradient(
+    ellipse at 100% 50%,
+    rgba(255, 255, 255, 0.16),
+    transparent 68%
+  );
+}
+
+@keyframes menu-drift-a {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-32%, 34%, 0) scale(1.12); }
+  100% { transform: translate3d(-8%, 78%, 0) scale(0.94); }
+}
+
+@keyframes menu-drift-b {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(34%, -28%, 0) scale(1.1); }
+  100% { transform: translate3d(62%, -8%, 0) scale(0.92); }
+}
+
+@keyframes menu-drift-c {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(30%, 22%, 0) scale(1.15); }
+  100% { transform: translate3d(-18%, 46%, 0) scale(0.9); }
+}
+
+@keyframes menu-swirl {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-menu-blob {
+    animation: none;
+  }
+}
+
+.nav-menu-panel {
+  position: absolute;
+  top: var(--menu-s);
+  right: 0;
+  width: calc(var(--menu-w) - 2px);
+  visibility: hidden;
+  z-index: 1;
+}
+
+.nav-menu-inner {
+  position: relative;
+  padding: calc(var(--menu-s) * 0.55) calc(var(--menu-s) * 0.6)
+    calc(var(--menu-s) * 0.7);
+}
+
+.nav-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
-  align-items: center;
-  gap: 0.9rem;
-  margin-left: auto;
+  flex-direction: column;
+  gap: calc(var(--menu-s) * 0.12);
+}
+
+.nav-menu-item {
+  overflow: hidden;
+}
+
+nav .nav-menu .nav-menu-link {
+  display: block;
+  color: var(--menu-fg);
+  font-family: "AppleRegular", serif;
+  font-size: clamp(2rem, 1.4rem + 2.2vw, 3rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.nav-menu-reveal {
+  display: block;
+}
+
+.nav-menu-circles {
+  position: absolute;
+  right: calc(var(--menu-s) * 0.6);
+  bottom: calc(var(--menu-s) * 0.7);
+  display: flex;
+  gap: calc(var(--menu-s) * 0.18);
+}
+
+/* social buttons: no light of their own - they are lightly frosted rings
+   over the same moving purple light as the rest of the glass */
+nav .nav-menu-circle {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  width: calc(var(--menu-s) * 0.64);
+  height: calc(var(--menu-s) * 0.64);
+  border-radius: 50%;
+  border: 1px solid rgba(226, 214, 255, 0.42);
+  color: var(--menu-fg);
+  font-size: 1rem;
+  background:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.03) 55%),
+    rgba(255, 255, 255, 0.04);
+  box-shadow:
+    inset 0 1px 1px var(--menu-glass-highlight),
+    inset 0 -5px 9px rgba(255, 255, 255, 0.05),
+    0 0 12px rgba(88, 106, 107, 0.28);
+  transition:
+    border-color 0.4s ease,
+    box-shadow 0.4s ease;
+}
+
+nav .nav-menu-circle::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    115deg,
+    transparent 32%,
+    rgba(255, 255, 255, 0.28) 50%,
+    transparent 68%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+
+.nav-menu-social-icon {
+  width: calc(var(--menu-s) * 0.32);
+  height: calc(var(--menu-s) * 0.32);
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+nav .nav-menu-circle:hover,
+nav .nav-menu-circle:focus-visible {
+  border-color: rgba(240, 232, 255, 0.7);
+  box-shadow:
+    inset 0 1px 1px var(--menu-glass-highlight),
+    inset 0 -5px 9px rgba(255, 255, 255, 0.08),
+    0 0 16px rgba(88, 106, 107, 0.4);
+}
+
+nav .nav-menu-circle:hover::before,
+nav .nav-menu-circle:focus-visible::before {
+  transform: translateX(130%);
+}
+
+.nav-menu-circle:hover .nav-menu-social-icon,
+.nav-menu-circle:focus-visible .nav-menu-social-icon {
+  transform: scale(1.15) translateY(-1px);
+}
+
+/* the trigger has no material of its own - it is the top-right corner of
+   the shared glass, with the dice on top and a faint hover sweep */
+.nav-menu-trigger {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  width: var(--menu-s);
+  height: var(--menu-s);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  border-radius: var(--menu-radius);
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.nav-menu-trigger::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    115deg,
+    transparent 34%,
+    rgba(255, 255, 255, 0.18) 50%,
+    transparent 66%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+
+.nav-menu-trigger:hover::before,
+.nav-menu-trigger:focus-visible::before {
+  transform: translateX(130%);
+}
+
+.nav-menu-trigger:focus-visible {
+  outline: 2px solid var(--menu-fg);
+  outline-offset: 2px;
+}
+
+.nav-menu-dice {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: calc(var(--menu-s) * 0.16);
+}
+
+.nav-menu-dice i {
+  display: block;
+  width: calc(var(--menu-s) * 0.13);
+  height: calc(var(--menu-s) * 0.13);
+  border-radius: 50%;
+  background: var(--menu-fg);
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.nav-menu-trigger[aria-expanded="true"] .nav-menu-dice i:nth-child(odd) {
+  transform: translateX(calc(var(--menu-s) * 0.05)) scale(0.8);
+}
+
+.nav-menu-trigger[aria-expanded="true"] .nav-menu-dice i:nth-child(even) {
+  transform: translateX(calc(var(--menu-s) * -0.05)) scale(0.8);
 }
 
 nav a,
@@ -205,31 +596,37 @@ section {
 
 .hero {
   will-change: auto;
+  /* the flat base color the hero used to get from its Unicorn Studio
+     background layer (#cecfc9, same as --color-surface) */
+  background-color: var(--color-surface);
+  /* pixel grid from the original cursor demo (one small corner tick per
+     cell), recolored for this light background. Each tile is exactly one
+     fluid pixel: HeroFluidCursor.jsx publishes the real cell size as
+     --hero-pixel-w/-h (they differ slightly from PIXEL_SIZE unless the
+     hero divides evenly), so the grid and the fluid stay on the same cells.
+     12px is the fallback when that component isn't running */
+  background-image: url("data:image/svg+xml;utf8,<svg width='51' height='51' viewBox='0 0 51 51' fill='none' xmlns='http://www.w3.org/2000/svg'><line x1='4.18933' y1='0' x2='4.18933' y2='8.124' stroke='%23072f33' stroke-opacity='0.5'/><line y1='3.93469' x2='8.1989' y2='3.93469' stroke='%23072f33' stroke-opacity='0.5'/></svg>");
+  background-size: var(--hero-pixel-w, 12px) var(--hero-pixel-h, 12px);
+  background-position: 0 0;
 }
 
-/* full-bleed Unicorn Studio background - sits behind everything else in
-   the hero via z-index; overflow:hidden keeps its internal canvas from
-   ever forcing horizontal scroll regardless of viewport size.
-   background-color matches the published scene's own base layer tone, so
-   there's nothing to flash against while the canvas is still loading. */
-.hero-unicorn-bg {
+/* fluid pixel cursor trail (HeroFluidCursor.jsx) - sits under
+   .hero-content's text (z-index 1); pointer-events:none so it never
+   intercepts the mouse/touch the page needs */
+.hero-fluid {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   z-index: 0;
-  overflow: hidden;
-  background-color: #cecfc9;
+  pointer-events: none;
 }
 
-/* the canvas itself fades in once Unicorn Studio reports the scene is
-   ready (see onLoad in Hero.jsx) - the matching background-color above
-   means this fade is invisible until there's actually motion to reveal */
-.hero-unicorn-canvas {
-  opacity: 0;
-  transition: opacity 0.35s ease;
-}
-
-.hero-unicorn-canvas--ready {
-  opacity: 1;
+/* once the WebGL twin of the headline text is drawn (HeroFluid), the DOM
+   text stays for layout/selection/accessibility but stops painting */
+.hero-troika-ready .hero-heading,
+.hero-troika-ready .hero-heading-lead {
+  color: transparent;
 }
 
 .hero-content {
@@ -251,7 +648,7 @@ section {
   flex-direction: row;
   align-items: flex-start;
   gap: 1rem;
-  max-width: 43rem;
+  max-width: min(62rem, calc(100vw - 5rem));
   z-index: 1;
   will-change: transform;
 }
@@ -260,12 +657,12 @@ section {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  /* pulls the whole group up so "where"'s own bottom lines up with the
-     bottom of the heading's first line ("AMBITIOUS") instead of sitting
-     lower, in line-1/line-2 no-man's-land - expressed as a ratio of the
-     heading's own (fluid) size so the alignment stays correct as it scales,
-     rather than a fixed rem value that was only ever tuned for 4rem */
-  margin-top: calc(var(--hero-heading-size) * -0.6);
+  /* pulls the group up so "where"'s bottom lines up with the bottom of the
+     heading's first line ("AMBITIOUS"). "where" is the same size as the
+     heading, so the pull needed is just what sits above it in this group -
+     the eyebrow (4 lines x 1.4 x 0.65rem) plus the gap - and no longer
+     depends on the heading's fluid size at all */
+  margin-top: -4.14rem;
 }
 
 .hero-eyebrow {
@@ -292,9 +689,8 @@ section {
   flex: 0 0 auto;
   font-family: "Apply", serif;
   font-style: italic;
-  /* scaled at the same ~0.5625 ratio to the heading size as the original
-     fixed pair (2.25rem lead : 4rem heading) */
-  font-size: calc(var(--hero-heading-size) * 0.5625);
+  /* same size as the heading it leads into */
+  font-size: var(--hero-heading-size);
   line-height: 1;
   color: var(--color-text);
 }
@@ -306,6 +702,9 @@ section {
   letter-spacing: -0.01em;
   text-transform: uppercase;
   color: var(--color-text);
+  /* three deliberate lines (see Hero.jsx); if one ever runs out of room it
+     wraps evenly instead of stranding a single word */
+  text-wrap: balance;
 }
 
 /* below this, even the fluid-sized row above still tries to fit "where" +
@@ -944,15 +1343,6 @@ section {
     white-space: nowrap;
   }
 
-  .nav-links {
-    flex-basis: 100%;
-    width: 100%;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-    margin-left: 0;
-  }
-
   .testimonial-card {
     width: 14rem;
   }
@@ -1109,5 +1499,13 @@ section {
   /* on very narrow phones, tighten the nav's own outer padding */
   nav {
     padding: 1.25rem;
+    --nav-pad-x: 1.25rem;
   }
 }
+
+
+
+
+
+
+

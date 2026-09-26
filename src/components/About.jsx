@@ -216,7 +216,7 @@ export default function About() {
 
         <div className="about-founder">
           <div className="about-owner-pic">
-            <img src="/images/OWNER.webp" alt="Founder of Creatica Crown" />
+            <img src="/images/OWNER.webp" alt="Founder of Creatica Crown" loading="lazy" decoding="async" />
           </div>
 
           <div className="about-founder-copy">
