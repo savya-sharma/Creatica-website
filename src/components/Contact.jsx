@@ -6,6 +6,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import FooterInfoGrid from "./FooterInfoGrid";
+import RollingText from "./RollingText";
 import CornerDownRightIcon from "./icons/CornerDownRightIcon";
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
@@ -249,11 +250,13 @@ export default function Contact() {
             />
 
             <button
-              className="site-footer-button contact-submit"
+              className="site-footer-button contact-submit btn-glass"
               type="submit"
               disabled={status === STATUS.SUBMITTING}
             >
-              {status === STATUS.SUBMITTING ? "Sending..." : "Send it"}{" "}
+              <RollingText>
+                {status === STATUS.SUBMITTING ? "Sending..." : "Send it"}
+              </RollingText>{" "}
               <span>&rarr;</span>
             </button>
 
@@ -278,8 +281,12 @@ export default function Contact() {
           <div className="site-footer-bottom">
             <span>&copy; 2025-{new Date().getFullYear()}. All rights reserved</span>
             <div className="site-footer-bottom-links">
-              <Link href="/policy">Terms of Services</Link>
-              <Link href="/policy?tab=privacy">Privacy Policy</Link>
+              <Link href="/policy">
+                <RollingText>Terms of Services</RollingText>
+              </Link>
+              <Link href="/policy?tab=privacy">
+                <RollingText>Privacy Policy</RollingText>
+              </Link>
             </div>
           </div>
         </div>

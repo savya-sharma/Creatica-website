@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { projects } from "@/data/projects";
+import RollingText from "./RollingText";
 
 export default function Brands() {
   const overlayRef = useRef(null);
@@ -190,7 +191,7 @@ export default function Brands() {
             <span className="work-item__name">{p.name}</span>
             <span className="work-item__direction">{p.direction}</span>
             <a className="work-item__demo" href={p.demo}>
-              Demo
+              <RollingText>Demo</RollingText>
             </a>
           </li>
         ))}

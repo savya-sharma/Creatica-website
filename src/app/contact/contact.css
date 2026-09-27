@@ -177,10 +177,13 @@
 
 .contact-submit {
   align-self: flex-start;
-  border: none;
   cursor: pointer;
-  background-color: #072f33;
-  color: var(--color-surface);
+  /* background/border come from .btn-glass; this sits on the page's own
+     light background, so its text is dark rather than .site-footer-button's
+     usual light (that one is always on the dark site-wide footer) */
+  color: var(--color-text);
+  /* glass colour/movement now comes from .btn-glass's shared default -
+     the same #586a6b/#072f33 drift as every other button on the site */
 }
 
 .contact-submit:disabled {

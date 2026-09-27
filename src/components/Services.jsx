@@ -112,7 +112,7 @@ export default function Services() {
 
           return gsap.to(self.lines, {
             yPercent: 0,
-            duration: 1,
+            duration: 0.6,
             ease: "power3.out",
             stagger: 0.05,
             scrollTrigger: {

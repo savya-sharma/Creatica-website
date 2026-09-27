@@ -11,11 +11,11 @@ gsap.registerPlugin(ScrollTrigger);
 export default function SmoothScroll() {
   useEffect(() => {
     const lenis = new Lenis({
-      // a touch snappier than Lenis's own default (0.1) - keeps the
-      // interpolated position closer to the real input during fast
-      // scrolling, so ScrollTrigger (see below) has less ground to make
-      // up each frame instead of visibly catching up late
-      lerp: 0.12,
+      // lower than Lenis's own default (0.1), and lower than this project's
+      // previous 0.12, for a smoother, more "premium" trail behind the
+      // input - a deliberately modest drop, low enough to read as fluid
+      // rather than snappy, not so low it reads as laggy/delayed
+      lerp: 0.09,
       // explicit, even though it's Lenis's own default: a reduced-motion
       // preference should fall back to plain native scrolling rather than
       // smoothed/lerped motion

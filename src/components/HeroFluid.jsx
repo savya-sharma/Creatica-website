@@ -4,7 +4,6 @@ import { Component, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "troika-three-text";
-import { whenIdle } from "@/lib/whenIdle";
 
 // One R3F canvas for the whole hero: a GPU stable-fluids simulation (velocity
 // + ink) drawn as a soft ink layer, plus Troika copies of the hero text whose
@@ -552,26 +551,18 @@ function HeroText({ root, selector, font, textUniforms, onSynced }) {
       });
     }
     // The first typeset (font parse + glyph SDF rendering, which Troika does
-    // on the main thread) is its own idle-time task, separate from the
-    // canvas/simulation set-up, so the page stays clickable in between. Until
-    // then the DOM text simply stays visible. Later size/font changes
-    // re-measure immediately.
-    let started = false;
-    function remeasure() {
-      if (started) measure();
-    }
-    measureRef.current = remeasure;
+    // on the main thread) runs immediately rather than waiting for browser
+    // idle: the entry preloader's own multi-second runtime is what covers
+    // this (see HeroFluid's mount effect). Until synced, the DOM text
+    // simply stays visible.
+    measureRef.current = measure;
 
-    const observer = new ResizeObserver(remeasure);
+    const observer = new ResizeObserver(measure);
     observer.observe(root);
-    document.fonts.ready.then(remeasure);
-    const cancelIdle = whenIdle(() => {
-      started = true;
-      measure();
-    });
+    document.fonts.ready.then(measure);
+    measure();
 
     return () => {
-      cancelIdle();
       disposed = true;
       measureRef.current = null;
       observer.disconnect();
@@ -809,17 +800,16 @@ export default function HeroFluid() {
     if (!prefersFluid()) return undefined;
     const root = wrapRef.current?.parentElement;
     if (!root) return undefined;
-    const update = () =>
-      setState({ enabled: true, root, tablet: window.innerWidth < 1024 });
-    // The hero paints and the navbar is clickable first; the renderer,
-    // simulation and text set-up start when the browser is next idle.
-    const cancelIdle = whenIdle(update);
+    // prefersFluid() already excludes reduced-motion, and only those users
+    // get the full-screen entry preloader's multi-second runtime as cover -
+    // so starting the renderer/simulation/text set-up immediately here (not
+    // deferred to browser idle) is what lets it be ready by the moment the
+    // preloader hands off, per the reveal below, without ever blocking a
+    // menu/click on a page the preloader isn't also covering.
+    setState({ enabled: true, root, tablet: window.innerWidth < 1024 });
     const onResize = () => setState((prev) => (prev.enabled ? { ...prev, tablet: window.innerWidth < 1024 } : prev));
     window.addEventListener("resize", onResize);
-    return () => {
-      cancelIdle();
-      window.removeEventListener("resize", onResize);
-    };
+    return () => window.removeEventListener("resize", onResize);
   }, []);
 
   return (

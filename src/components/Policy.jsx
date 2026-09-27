@@ -6,6 +6,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import { scrambleTo } from "@/lib/scrambleHover";
+import RollingText from "./RollingText";
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
@@ -544,7 +545,7 @@ export default function Policy({ initialTab = "terms" }) {
           className="policy-close"
           onClick={() => router.back()}
         >
-          <span aria-hidden="true">&larr;</span> Close
+          <span aria-hidden="true">&larr;</span> <RollingText>Close</RollingText>
         </button>
 
         {Object.entries(POLICIES).map(([tabId, tabPolicy]) => (
@@ -556,7 +557,7 @@ export default function Policy({ initialTab = "terms" }) {
             }`}
             onClick={() => setActiveTab(tabId)}
           >
-            {tabPolicy.label}
+            <RollingText>{tabPolicy.label}</RollingText>
           </button>
         ))}
       </div>

@@ -8,6 +8,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { vertexShader, fragmentShader } from "./shaders/monitorDisplayShader";
 import { projects } from "@/data/projects";
 import { whenIdle } from "@/lib/whenIdle";
+import RollingText from "./RollingText";
 
 const DEFAULT_DISPLAY_IMAGE = "/BrandsImg/DEFAULT-IMG-2048.webp";
 const MONITOR_PROJECTS = projects.map((project) => ({
@@ -436,8 +437,8 @@ export default function ManifestoMonitor() {
       <div className="manifesto-monitor" ref={containerRef} />
       <ul className="manifesto-projects" ref={listRef}>
         {MONITOR_PROJECTS.map((project) => (
-          <li key={project.name} data-img={project.image}>
-            {project.name}
+          <li key={project.name} className="btn-glass" data-img={project.image}>
+            <RollingText>{project.name}</RollingText>
           </li>
         ))}
       </ul>

@@ -4,6 +4,7 @@ import "lenis/dist/lenis.css";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
 import Navbar from "@/components/Navbar";
+import Preloader from "@/components/Preloader";
 import Footer from "@/components/Footer";
 
 const geistSans = Geist({
@@ -36,6 +37,10 @@ export default function RootLayout({ children }) {
         <Script id="disable-scroll-restoration" strategy="beforeInteractive">
           {"try{if('scrollRestoration' in history){history.scrollRestoration='manual';}}catch(e){}"}
         </Script>
+        {/* unconditionally part of the server-rendered HTML - see the
+            .preloader rule in globals.css and the comment on Preloader.jsx
+            for why nothing here waits on JS/hydration to cover the Hero */}
+        <Preloader />
         <SmoothScroll />
         <Navbar />
         {children}

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import RollingText from "./RollingText";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
@@ -93,8 +94,8 @@ export default function Footer() {
             Meaningful
           </h2>
 
-          <a className="site-footer-button" href="mailto:hello@creaticacrown.com">
-            Start Project <span>&rarr;</span>
+          <a className="site-footer-button btn-glass" href="mailto:hello@creaticacrown.com">
+            <RollingText>Start Project</RollingText> <span>&rarr;</span>
           </a>
         </div>
 
@@ -112,8 +113,12 @@ export default function Footer() {
       <div className="site-footer-bottom">
         <span>&copy; 2025-{new Date().getFullYear()}. All rights reserved</span>
         <div className="site-footer-bottom-links">
-          <Link href="/policy">Terms of Services</Link>
-          <Link href="/policy?tab=privacy">Privacy Policy</Link>
+          <Link href="/policy">
+            <RollingText>Terms of Services</RollingText>
+          </Link>
+          <Link href="/policy?tab=privacy">
+            <RollingText>Privacy Policy</RollingText>
+          </Link>
         </div>
       </div>
     </footer>

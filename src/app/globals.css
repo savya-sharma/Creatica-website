@@ -20,7 +20,7 @@
 }
 
 :root {
-  --color-surface: #cecfc9;
+  --color-surface: #cecfc9; 
   --color-text: #072f33;
   --color-button: #99a395;
   --color-section-bg: #586a6b;
@@ -41,6 +41,21 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: "AppleRegular", Arial, Helvetica, sans-serif;
+}
+
+/* the scrollbar is hidden purely visually, on the elements Lenis actually
+   scrolls (html/body - no wrapper/content option is passed to it) - none of
+   this touches overflow, so native/keyboard/touch scrolling, page height
+   and Lenis's own scroll handling are all completely unaffected */
+html,
+body {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* older Edge/IE */
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge (Chromium) */
 }
 
 * {
@@ -116,7 +131,12 @@ nav {
 }
 
 .nav-dark .nav-logo img {
-  filter: invert(1);
+  /* the logo's own fill is a dark teal, not black, so a plain invert(1)
+     came out as an off pink rather than the intended --color-surface
+     (#cecfc9): brightness(0) first flattens it to solid black regardless
+     of its source colour, then invert(80%) brings that up to exactly
+     #cecfc9's grey level */
+  filter: brightness(0) invert(80%);
 }
 
 .nav-tagline {
@@ -525,6 +545,33 @@ nav a {
   color: var(--color-surface);
 }
 
+/* ---- shared vertical rolling-text hover (components/RollingText.jsx) --
+   two identical copies of the label stacked in a column, clipped to
+   exactly one line; JS slides the column up by one line on hover/focus.
+   Sizing is all in em so it matches whatever font-size the button/link it
+   sits inside already sets - nothing here changes that element's own
+   layout, only what happens to the label inside it. */
+.rolling-text {
+  display: inline-block;
+  overflow: hidden;
+  height: 1em;
+  line-height: 1;
+  vertical-align: top;
+}
+
+.rolling-text-track {
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+}
+
+.rolling-text-layer {
+  display: block;
+  height: 1em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .nav-link-swap {
   display: flex;
   align-items: center;
@@ -821,19 +868,24 @@ section {
   font-family: "PP Neue", sans-serif;
   font-size: clamp(0.85rem, 0.65rem + 0.6vw, 1.05rem);
   font-weight: 500;
+  /* the section behind these (and the monitor itself) is light, matching
+     the site's other on-light glass button (.contact-submit) */
   color: var(--color-text);
   width: max-content;
   padding: 0.6rem 1.1rem;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-text);
   border-radius: 999px;
   cursor: pointer;
-  transition: color 0.2s ease, background-color 0.2s ease;
-}
-
-.manifesto-projects li:hover {
-  color: var(--color-surface);
-  background-color: var(--color-text);
+  /* inline-flex + centered cross-axis, matching every other btn-glass
+     usage (.site-footer-button, .policy-close) - without this, the li's
+     line box is sized off the font's own metrics (taller than 1em), and
+     RollingText's vertical-align:top pins the text to the top of that
+     box, dumping all the leftover space below it as a visible gap */
+  display: inline-flex;
+  align-items: center;
+  /* background/border/hover now come from .btn-glass (see globals.css) -
+     hovering one of these already gives its own feedback (the monitor
+     screen switches to that brand), so the glass just needs its normal
+     hover brightening, not a second, competing colour swap */
 }
 
 
@@ -1218,12 +1270,132 @@ section {
   gap: 0.5rem;
   padding: 0.85rem 1.75rem;
   border-radius: 999px;
-  background-color: var(--color-surface);
-  color: var(--color-text);
+  /* background comes from .btn-glass (below); this is always used on the
+     dark site-wide footer, so its text is light regardless of page */
+  color: var(--color-surface);
   font-family: "PP Neue", sans-serif;
   font-size: 0.9rem;
   font-weight: 300;
   letter-spacing: 0.02em;
+}
+
+/* ---- shared glass-button material (see .nav-menu-glass for the menu's
+   own version of this) - transparent glass with a soft moving violet/
+   indigo light trapped inside, clipped to the button's own shape via its
+   own overflow:hidden + border-radius. Applied alongside each button's
+   existing class, so its size/padding/radius/typography/layout are
+   untouched; only the background/border/shadow are taken over. */
+.btn-glass {
+  --btn-glass-base: rgba(255, 255, 255, 0.14);
+  --btn-glass-blur: 12px;
+  --btn-glass-blur-hover: 8px;
+  --btn-glass-saturate: 150%;
+  --btn-glass-border: rgba(232, 222, 255, 0.5);
+  --btn-glass-border-hover: rgba(232, 222, 255, 0.85);
+  --btn-glass-highlight: rgba(255, 255, 255, 0.55);
+  --btn-glass-highlight-hover: rgba(255, 255, 255, 0.8);
+  --btn-glass-shadow: rgba(46, 22, 100, 0.22);
+  /* the moving light inside the glass drifts between the site's two teals -
+     #586a6b and the darker #072f33 - rather than sitting on one tone: the
+     ::before layer (glow-a/b) leans toward #586a6b, ::after (glow-c/d)
+     toward #072f33, each on its own independent drift/rotate timing (see
+     btn-glass-drift-1/2 below), so which one currently dominates any part
+     of the button keeps slowly, irregularly changing */
+  --btn-glass-glow-a: rgba(88, 106, 107, 0.55);
+  --btn-glass-glow-b: rgba(7, 47, 51, 0.4);
+  --btn-glass-glow-c: rgba(7, 47, 51, 0.5);
+  --btn-glass-glow-d: rgba(88, 106, 107, 0.42);
+
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid var(--btn-glass-border);
+  background-color: var(--btn-glass-base);
+  box-shadow:
+    inset 0 1px 0 var(--btn-glass-highlight),
+    0 10px 26px -16px var(--btn-glass-shadow);
+  -webkit-backdrop-filter: blur(var(--btn-glass-blur)) saturate(var(--btn-glass-saturate));
+  backdrop-filter: blur(var(--btn-glass-blur)) saturate(var(--btn-glass-saturate));
+  transition:
+    border-color 0.35s ease,
+    box-shadow 0.35s ease,
+    -webkit-backdrop-filter 0.35s ease,
+    backdrop-filter 0.35s ease;
+}
+
+/* text/icon content stays above the moving light */
+.btn-glass > * {
+  position: relative;
+  z-index: 1;
+}
+
+.btn-glass::before,
+.btn-glass::after {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  /* negative, not 0: .btn-glass's own isolation:isolate keeps this
+     contained, and it's what keeps these under the button's raw text -
+     in-flow text paints above z-index:0 positioned siblings, so z-index:0
+     here would have painted the blobs over the label */
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(7px);
+}
+
+.btn-glass::before {
+  background:
+    radial-gradient(38% 60% at 22% 30%, var(--btn-glass-glow-a), transparent 70%),
+    radial-gradient(32% 55% at 82% 78%, var(--btn-glass-glow-b), transparent 70%);
+  animation: btn-glass-drift-1 11s ease-in-out infinite alternate;
+}
+
+.btn-glass::after {
+  background:
+    radial-gradient(30% 52% at 75% 18%, var(--btn-glass-glow-c), transparent 72%),
+    radial-gradient(34% 58% at 20% 82%, var(--btn-glass-glow-d), transparent 72%);
+  animation: btn-glass-drift-2 15s ease-in-out infinite alternate;
+}
+
+@keyframes btn-glass-drift-1 {
+  0% {
+    transform: translate(-6%, -4%) scale(1);
+  }
+  50% {
+    transform: translate(6%, 5%) scale(1.18);
+  }
+  100% {
+    transform: translate(-3%, 6%) scale(0.94);
+  }
+}
+
+@keyframes btn-glass-drift-2 {
+  0% {
+    transform: translate(5%, 4%) rotate(0deg);
+  }
+  50% {
+    transform: translate(-6%, -5%) rotate(10deg);
+  }
+  100% {
+    transform: translate(4%, -3%) rotate(-8deg);
+  }
+}
+
+.btn-glass:hover,
+.btn-glass:focus-visible {
+  border-color: var(--btn-glass-border-hover);
+  box-shadow:
+    inset 0 1px 0 var(--btn-glass-highlight-hover),
+    0 14px 32px -16px var(--btn-glass-shadow);
+  -webkit-backdrop-filter: blur(var(--btn-glass-blur-hover)) saturate(calc(var(--btn-glass-saturate) + 20%));
+  backdrop-filter: blur(var(--btn-glass-blur-hover)) saturate(calc(var(--btn-glass-saturate) + 20%));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-glass::before,
+  .btn-glass::after {
+    animation: none;
+  }
 }
 
 .site-footer-info {
@@ -1509,3 +1681,82 @@ section {
 
 
 
+
+
+/* ---- preloader (components/Preloader.jsx) ----------------------------- */
+/* covers the viewport unconditionally, straight from the server-rendered
+   HTML/CSS - no JS, attribute or hydration step decides whether it shows,
+   so there is no gap in which the Hero underneath could ever be painted
+   first. Preloader.jsx removes the element from the tree once its
+   animation finishes (or immediately, for prefers-reduced-motion) */
+.preloader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100svh;
+  overflow: hidden;
+  z-index: 10000;
+  pointer-events: auto;
+  background-color: #e1e1e1;
+}
+
+/* the class the component adds once it has taken over scroll-locking via
+   JS (see Preloader.jsx); kept separate from the element's own visibility
+   so a no-JS visitor isn't left with the page permanently unscrollable */
+.preloader-lock {
+  overflow: hidden;
+}
+
+.preloader-bg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: #e1e1e1;
+  z-index: 0;
+}
+
+.preloader-grid {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-wrap: wrap;
+  z-index: 1;
+}
+
+/* no permanent will-change here (the reference put it on every tile, i.e.
+   a few hundred compositor layers); transform/opacity tweens promote what
+   they animate on their own */
+.grid-tile {
+  flex: 0 0 auto;
+  background-color: #586a6b;
+  outline: 0.05px solid #586a6b;
+}
+
+.progress-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  font-weight: 500;
+  font-size: 0.95rem;
+  will-change: transform;
+}
+
+.progress-marker p {
+  margin: 0;
+}
+
+/* the site logo is wide (about 3:1), so it gets more of the tile than the
+   reference's square-logo 50% */
+.progress-marker img {
+  width: 82%;
+  height: 50%;
+  object-fit: contain;
+}
