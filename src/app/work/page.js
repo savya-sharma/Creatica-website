@@ -1,6 +1,6 @@
-import "../playground/playground.css";
-import Playground from "@/components/Playground";
+import "./ring-carousel.css";
+import WorkRingCarousel from "@/components/WorkRingCarousel";
 
 export default function WorkPage() {
-  return <Playground />;
+  return <WorkRingCarousel />;
 }

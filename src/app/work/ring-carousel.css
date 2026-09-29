@@ -1,0 +1,33 @@
+/* adapted from the source carousel's own style.css - position: fixed was
+   dropped (see RingCarouselSection.jsx) so the carousel occupies its own
+   section in the Work page's normal document flow instead of pinning to
+   the viewport regardless of scroll, which would break the site's shared
+   nav/footer. Everything else (composition, cursor states, canvas sizing)
+   is unchanged. */
+.slider {
+  position: relative;
+  width: 100%;
+  height: 100svh;
+  background: #0b1011;
+  overflow: hidden;
+}
+
+.carousel {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+  outline: none;
+}
+
+.carousel.is-dragging {
+  cursor: grabbing;
+}
+
+.ring-carousel__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}

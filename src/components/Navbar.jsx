@@ -34,18 +34,15 @@ const SOCIAL_LINKS = [
 const MENU_LINKS = [
   { href: "/about", label: "About" },
   { href: "/work", label: "Work" },
-  { href: "/playground", label: "Playground" },
   { href: "/contact", label: "Contact" },
 ];
 
 export default function Navbar() {
   const pathname = usePathname();
   const navRef = useRef(null);
-  // pages swapped again: /playground now renders the dark-background
-  // bee-flight page (WorkBee), and /work renders the white-background
-  // orbit carousel (Playground)
-  const isDark =
-    pathname?.startsWith("/about") || pathname?.startsWith("/playground");
+  // /work now renders the dark-background bee-flight page (WorkBee) -
+  // the standalone /playground route it used to live at has been removed
+  const isDark = pathname?.startsWith("/about") || pathname?.startsWith("/work");
 
   // hides the fixed navbar on scroll-down and drops it back in on
   // scroll-up, driven by the site's shared Lenis instance so it reacts to

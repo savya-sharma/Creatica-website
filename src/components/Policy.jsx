@@ -457,7 +457,7 @@ export default function Policy({ initialTab = "terms" }) {
   const policy = POLICIES[activeTab];
 
   // same masked bottom-to-top line reveal used elsewhere on the site
-  // (About/Footer/Contact/Playground) - skips the paragraphs that carry
+  // (About/Footer/Contact/Work) - skips the paragraphs that carry
   // the copy-email button/links (see policy-p--interactive above), since
   // splitting their text tears down and rebuilds the DOM, silently
   // stripping the button's click handler

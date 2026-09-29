@@ -96,9 +96,10 @@ nav {
   padding: 1rem 2.5rem 1.25rem;
   will-change: transform;
   /* nav is meant to always be the topmost UI chrome sitewide - raised from
-     1 to leave headroom above the Playground orbit carousel's opaque,
-     fixed full-viewport section (z-index: 2), which itself needs to sit
-     above the sitewide Footer's own stacking context (position: relative) */
+     1 to leave headroom above pages with their own opaque, fixed
+     full-viewport sections (e.g. the Work page's bee-flight canvas), which
+     themselves need to sit above the sitewide Footer's own stacking
+     context (position: relative) */
   z-index: 10;
 }
 
@@ -557,6 +558,14 @@ nav a {
   height: 1em;
   line-height: 1;
   vertical-align: top;
+  /* purely decorative - RollingText.jsx always listens on the ANCESTOR
+     button/link (closest("a, button, li, ...")), never on this element or
+     its children, so none of it should ever be the thing the browser's
+     hit-testing resolves to. Explicit rather than relying on mouseenter/
+     mouseleave's own non-bubbling behavior to make that true incidentally -
+     this way hover/focus detection is unambiguously owned by the button
+     alone regardless of what's layered on top of it. */
+  pointer-events: none;
 }
 
 .rolling-text-track {
@@ -882,10 +891,55 @@ section {
      box, dumping all the leftover space below it as a visible gap */
   display: inline-flex;
   align-items: center;
-  /* background/border/hover now come from .btn-glass (see globals.css) -
+  /* background/border/hover still come from .btn-glass (see globals.css) -
      hovering one of these already gives its own feedback (the monitor
      screen switches to that brand), so the glass just needs its normal
-     hover brightening, not a second, competing colour swap */
+     hover brightening, not a second, competing colour swap. These custom
+     properties override .btn-glass's own sitewide (purple-tinted) defaults
+     for THIS button only - the border/shadow/glow read as the monitor's
+     own #586A6B/#072F33 light instead of a generic accent colour, so the
+     glass feels like it's catching light from the screen above it rather
+     than glowing on its own. Every other .btn-glass button (Footer,
+     Contact, Policy) is untouched. */
+  --btn-glass-base: rgba(88, 106, 107, 0.1);
+  --btn-glass-border: rgba(88, 106, 107, 0.38);
+  --btn-glass-border-hover: rgba(88, 106, 107, 0.7);
+  --btn-glass-highlight: rgba(255, 255, 255, 0.4);
+  --btn-glass-highlight-hover: rgba(255, 255, 255, 0.6);
+  --btn-glass-shadow: rgba(7, 47, 51, 0.3);
+  --btn-glass-glow-a: rgba(88, 106, 107, 0.38);
+  --btn-glass-glow-b: rgba(7, 47, 51, 0.28);
+  --btn-glass-glow-c: rgba(7, 47, 51, 0.32);
+  --btn-glass-glow-d: rgba(88, 106, 107, 0.28);
+  /* a tighter, closer-to-surface shadow than .btn-glass's default "floating
+     card" drop-shadow - reads as resting against the monitor rather than
+     hovering independently above the surface behind it */
+  box-shadow:
+    inset 0 1px 0 var(--btn-glass-highlight),
+    0 6px 16px -10px var(--btn-glass-shadow);
+  /* fixed, not animated - .btn-glass's shared :hover normally transitions
+     the blur radius and saturation up on hover, but animating
+     backdrop-filter is a well-known source of visible flicker/pop as the
+     browser re-samples everything behind the glass at a changing radius
+     every frame, worse here since this button sits over the monitor's
+     live WebGL canvas. Pinning both states to the same value removes that
+     delta entirely while keeping the exact same blurred-glass look; only
+     the cheap, compositor-friendly border-color/box-shadow below still
+     animate for the hover feedback. */
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  backdrop-filter: blur(10px) saturate(150%);
+  transition:
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.manifesto-projects li:hover,
+.manifesto-projects li:focus-visible {
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  backdrop-filter: blur(10px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 var(--btn-glass-highlight-hover),
+    0 8px 20px -10px var(--btn-glass-shadow);
 }
 
 
@@ -1046,22 +1100,148 @@ section {
   margin-bottom: 6rem;
 }
 
+/* editorial service card: a hairline rule stands in for a boxed border
+   (keeps the section's existing minimal, borderless surface), then eyebrow
+   index / title / positioning statement / capabilities / delivery each get
+   their own distinct type treatment instead of one undifferentiated list.
+   flex column + delivery's margin-top:auto keeps the delivery tag pinned
+   to the same baseline across a row regardless of how long any one card's
+   capability list runs. */
+.service-card {
+  display: flex;
+  flex-direction: column;
+  padding-top: 1.75rem;
+  border-top: 1px solid rgba(7, 47, 51, 0.15);
+}
+
+/* Web Development is the longest engagement of the five (3-4 weeks vs.
+   days for the rest) - spanning two tracks gives its process strip (see
+   .service-card-process) room to read as a single line instead of
+   wrapping, so the workflow itself is what visually signals the longer
+   delivery window */
+.service-card--featured {
+  grid-column: span 2;
+}
+
+.service-card-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.service-card-index {
+  font-family: "IBM", monospace;
+  font-size: 0.85rem;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  color: var(--color-text);
+  opacity: 0.5;
+  white-space: nowrap;
+}
+
+.service-card-index::after {
+  content: " \2014";
+}
+
 .service-card h3 {
   font-weight: 400;
-  font-size: 1.5rem;
-  margin-bottom: 1.25rem;
+  font-size: clamp(1.5rem, 1.3rem + 0.6vw, 1.85rem);
+  margin: 0;
   color: var(--color-text);
 }
 
-.service-card ul {
-  list-style: none;
-}
-
-.service-card li {
+.service-card-statement {
+  max-width: 32rem;
+  margin: 0 0 1.75rem;
   font-family: "PP Neue", sans-serif;
-  font-size: 1.1rem;
-  line-height: 1.7;
+  font-size: 1.05rem;
+  line-height: 1.6;
   color: var(--color-text);
+  opacity: 0.7;
+}
+
+.service-card-capabilities {
+  list-style: none;
+  margin: 0 0 1.75rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.service-card-capabilities li {
+  position: relative;
+  padding-left: 1.1rem;
+  font-family: "PP Neue", sans-serif;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.service-card-capabilities li::before {
+  content: "\2013";
+  position: absolute;
+  left: 0;
+  opacity: 0.4;
+}
+
+/* the one card that gets this (Web Development, see SERVICES in
+   Services.jsx) - a plain, arrow-joined step strip rather than a styled
+   timeline graphic, so it reads as process documentation, not decoration */
+.service-card-process {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0;
+  margin: 0 0 1.75rem;
+  padding: 1.25rem 0 0;
+  border-top: 1px solid rgba(7, 47, 51, 0.15);
+}
+
+.service-card-process li {
+  font-family: "IBM", monospace;
+  font-size: 0.75rem;
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text);
+  opacity: 0.65;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.service-card-process li:not(:last-child)::after {
+  content: "\2192";
+  opacity: 0.5;
+}
+
+/* subtle by design (spec: "visually distinct but subtle") - small, muted,
+   mono/uppercase like the site's other meta labels (see .site-footer-col
+   h3), not a loud price-tag treatment */
+.service-card-delivery {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 1.5rem;
+  font-family: "IBM", monospace;
+  font-size: 0.75rem;
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.service-card-delivery span:first-child {
+  color: var(--color-text);
+  opacity: 0.45;
+}
+
+.service-card-delivery span:last-child {
+  color: var(--color-text);
+  opacity: 0.75;
 }
 
 
@@ -1523,8 +1703,13 @@ section {
     gap: 1.25rem 1.5rem;
   }
 
+  /* tablet: 2 columns rather than jumping straight to a single column -
+     the featured Web Development card still spans both (see
+     .service-card--featured), so its process strip stays on one row */
   .services-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 2.5rem;
+    row-gap: 3rem;
   }
 
   .site-footer-cta {
@@ -1594,6 +1779,23 @@ section {
 
   .content {
     padding: 2rem 1.25rem 0;
+  }
+
+  .services {
+    padding: 4rem 1.25rem 0;
+  }
+
+  .services-grid {
+    grid-template-columns: 1fr;
+    row-gap: 3rem;
+  }
+
+  .service-card--featured {
+    grid-column: auto;
+  }
+
+  .service-card-statement {
+    max-width: none;
   }
 
   .testimonials {

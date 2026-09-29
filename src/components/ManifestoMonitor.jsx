@@ -8,6 +8,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { vertexShader, fragmentShader } from "./shaders/monitorDisplayShader";
 import { projects } from "@/data/projects";
 import { whenIdle } from "@/lib/whenIdle";
+import { onPreloaderDone } from "@/lib/preloader";
 import RollingText from "./RollingText";
 
 const DEFAULT_DISPLAY_IMAGE = "/BrandsImg/DEFAULT-IMG-2048.webp";
@@ -110,6 +111,18 @@ export default function ManifestoMonitor() {
       if (textureCache[src]) return textureCache[src];
 
       const texture = textureLoader.load(src, () => {
+        // decoding a large image is already async (the browser's own image
+        // pipeline), but uploading it to the GPU is not - left to three.js's
+        // default lazy behaviour, that upload happens on whichever render
+        // call first actually draws this texture. For a pill hovered for
+        // the first time, that's the exact same frame GSAP's rolling-text
+        // tween is trying to animate on, and a large-enough image (see the
+        // note on MONITOR_PROJECTS above) can block that frame long enough
+        // for GSAP's ticker to see a big jump in elapsed time and snap the
+        // tween near its end instead of animating it - looking like the
+        // hover "glitches". initTexture() forces the upload right away,
+        // here, instead of leaving it to whenever the texture is first used.
+        renderer.initTexture(texture);
         displayMaterial.uniforms.imageAspect.value =
           texture.image.width / texture.image.height;
       });
@@ -123,6 +136,21 @@ export default function ManifestoMonitor() {
     }
 
     const defaultTexture = loadTexture(DEFAULT_DISPLAY_IMAGE);
+
+    // pre-warm every brand's texture so no hover has to pay for a decode+
+    // GPU-upload it's the first to trigger - but only once the entry
+    // preloader has actually finished, not merely once this whole function
+    // starts (still gated behind whenIdle, see the effect below). whenIdle's
+    // own 1500ms ceiling can - and does - fire while the preloader's tile
+    // animation is still running, and kicking off 23 concurrent image loads
+    // at that exact moment competed with it for bandwidth/CPU and made the
+    // preloader itself visibly laggier. Waiting for the real "done" signal
+    // instead means this heavy one-time cost lands only once the page has
+    // nothing more important in flight.
+    const cancelTexturePreload = onPreloaderDone(() => {
+      if (disposed) return;
+      MONITOR_PROJECTS.forEach((project) => loadTexture(project.image));
+    });
 
     const displayMaterial = new THREE.ShaderMaterial({
       uniforms: {
@@ -366,14 +394,34 @@ export default function ManifestoMonitor() {
         if (img) setDisplayImage(img);
       };
       li.addEventListener("mouseenter", handler);
+      // keyboard-focusing a pill previews it exactly like hovering one does
+      // (tabIndex/role are set on the element itself, see the JSX below) -
+      // this also gives RollingText's own focus/blur listeners on this same
+      // <li> something to actually fire on, since a plain <li> is never
+      // natively focusable
+      li.addEventListener("focus", handler);
       return [li, handler];
     });
 
     const handleListLeave = () => setDisplayImage(DEFAULT_DISPLAY_IMAGE);
     listEl.addEventListener("mouseleave", handleListLeave);
 
+    // mirrors mouseleave, but for keyboard: focusout bubbles for *every*
+    // blur, including tabbing from one pill straight to the next within
+    // this same list - only reset to the default image when focus leaves
+    // the list entirely, exactly like moving the mouse from one pill
+    // directly onto the next never resets to the default image first (the
+    // next pill's own "focus" handler above sets its image immediately,
+    // so resetting here too would fire two glitch transitions back to back)
+    function handleListFocusOut(event) {
+      if (listEl.contains(event.relatedTarget)) return;
+      handleListLeave();
+    }
+    listEl.addEventListener("focusout", handleListFocusOut);
+
     return () => {
       disposed = true;
+      cancelTexturePreload();
       stopAnimating();
       stopAutoCycle();
       mobileQuery.removeEventListener("change", handleMobileChange);
@@ -383,10 +431,12 @@ export default function ManifestoMonitor() {
       resizeObserver.disconnect();
       visibilityObserver.disconnect();
 
-      itemHandlers.forEach(([li, handler]) =>
-        li.removeEventListener("mouseenter", handler)
-      );
+      itemHandlers.forEach(([li, handler]) => {
+        li.removeEventListener("mouseenter", handler);
+        li.removeEventListener("focus", handler);
+      });
       listEl.removeEventListener("mouseleave", handleListLeave);
+      listEl.removeEventListener("focusout", handleListFocusOut);
 
       if (glitchAnimation) glitchAnimation.kill();
 
@@ -437,7 +487,18 @@ export default function ManifestoMonitor() {
       <div className="manifesto-monitor" ref={containerRef} />
       <ul className="manifesto-projects" ref={listRef}>
         {MONITOR_PROJECTS.map((project) => (
-          <li key={project.name} className="btn-glass" data-img={project.image}>
+          <li
+            key={project.name}
+            className="btn-glass"
+            data-img={project.image}
+            // focusable so keyboard users reach the same "preview this
+            // brand on the monitor" feedback a mouse hover gives (see the
+            // focus/focusout wiring above) - no role="button": there's no
+            // separate activation step to announce, focusing IS the whole
+            // interaction, exactly like hovering is for a mouse
+            tabIndex={0}
+            aria-label={`Preview ${project.name} on the monitor`}
+          >
             <RollingText>{project.name}</RollingText>
           </li>
         ))}

@@ -20,6 +20,12 @@ export default function Footer() {
   // the page scroll), so the site-wide footer would just be dead,
   // unreachable content sitting below it
   const hideOnContactPage = pathname?.startsWith("/contact");
+  // /work is a single full-viewport WebGL section (the ring carousel) with
+  // nothing to scroll to - a footer sitting below it would both never be
+  // reachable and give the page just enough extra height to let vertical
+  // scroll/wheel input leak past the carousel onto the page instead of
+  // driving its rotation
+  const hideOnWorkPage = pathname?.startsWith("/work");
 
   // same masked bottom-to-top line reveal used elsewhere on the site,
   // triggered once when the footer itself scrolls into view
@@ -77,7 +83,7 @@ export default function Footer() {
     };
   }, []);
 
-  if (hideOnContactPage) return null;
+  if (hideOnContactPage || hideOnWorkPage) return null;
 
   return (
     <footer className="site-footer" ref={footerRef}>
@@ -94,7 +100,7 @@ export default function Footer() {
             Meaningful
           </h2>
 
-          <a className="site-footer-button btn-glass" href="mailto:hello@creaticacrown.com">
+          <a className="site-footer-button btn-glass" href="mailto:contact@creaticacrown.com">
             <RollingText>Start Project</RollingText> <span>&rarr;</span>
           </a>
         </div>

@@ -12,55 +12,73 @@ gsap.registerPlugin(InertiaPlugin, ScrollTrigger, SplitText);
 const SERVICES = [
   {
     title: "Digital Marketing",
-    items: [
-      "2 Premium sample designs",
-      "15-20 Days delivery",
-      "Unlimited changes",
-      "Research and business",
-      "Product mockup images",
+    statement:
+      "Strategic campaigns designed to build awareness, reach the right audience, and drive growth.",
+    capabilities: [
+      "Meta, Google & Snapchat Ads",
+      "Brand Awareness Campaigns",
+      "Campaign Insights & Performance Analytics",
+      "Ad Campaign Setup & Management",
+      "Retargeting Campaigns",
+      "Static Creative Design",
     ],
+    delivery: "15–20 Days",
   },
   {
     title: "Web Development",
-    items: [
-      "3-4 Week delivery",
-      "Complete website design",
-      "Banner & images",
-      "Product Listing",
-      "Social media integration",
-      "Responsive designs",
+    statement: "Creative digital experiences built from concept to launch.",
+    capabilities: [
+      "Creative Direction & Visual Concept",
+      "UX/UI Design",
+      "Custom Website Development",
+      "Responsive Design",
+      "Interactive Animations & Micro-interactions",
+      "Product / Service Presentation",
+      "Social Media & Third-party Integration",
+      "Testing, Optimization & Deployment",
     ],
+    delivery: "3–4 Weeks",
   },
   {
     title: "Video Creation",
-    items: [
-      "2 Premium sample designs",
-      "15-20 Days delivery",
-      "Unlimited changes",
-      "Research and business",
-      "Product mockup images",
+    statement:
+      "Visual storytelling created to communicate your brand with impact.",
+    capabilities: [
+      "Creative Concept & Direction",
+      "Storyboard & Visual Planning",
+      "Product-focused Videos",
+      "Social Media Content",
+      "Motion Graphics & Transitions",
+      "Video Editing",
     ],
+    delivery: "15–20 Days",
   },
   {
-    title: "Logo design",
-    items: [
-      "2+2 Sample designs",
-      "15-20 Days delivery",
-      "Unlimited changes",
-      "Research and business",
-      "Brand identity creation",
-      "High resolution (HD)",
+    title: "Logo Design",
+    statement: "Distinctive identities designed around your brand's character.",
+    capabilities: [
+      "Brand & Business Research",
+      "2–4 Initial Logo Concepts",
+      "Creative Direction",
+      "Logo Refinement",
+      "Brand Identity Creation",
+      "High-resolution Final Files",
     ],
+    delivery: "2–4 Days",
   },
   {
     title: "Label Design",
-    items: [
-      "2 Premium sample designs",
-      "15-20 Days delivery",
-      "Unlimited changes",
-      "Research and business",
-      "Product mockup images",
+    statement: "Packaging visuals designed to make your product stand out.",
+    capabilities: [
+      "Product & Market Research",
+      "Creative Label Direction",
+      "2 Premium Design Concepts",
+      "Typography & Visual Hierarchy",
+      "Product Mockup Presentation",
+      "Design Refinement",
+      "Print-ready Files",
     ],
+    delivery: "3–5 Days",
   },
 ];
 
@@ -96,7 +114,9 @@ export default function Services() {
 
     const split = SplitText.create(
       Array.from(
-        container.querySelectorAll(".services-title, .service-card h3, .service-card li")
+        container.querySelectorAll(
+          ".services-title, .service-card h3, .service-card-statement, .service-card li"
+        )
       ),
       {
         type: "lines",
@@ -238,15 +258,41 @@ export default function Services() {
       <h2 className="services-title">Services</h2>
 
       <div className="services-grid">
-        {SERVICES.map((service) => (
-          <div className="service-card" key={service.title}>
-            <h3>{service.title}</h3>
-            <ul>
-              {service.items.map((item) => (
+        {SERVICES.map((service, index) => (
+          <article
+            className={
+              service.featured ? "service-card service-card--featured" : "service-card"
+            }
+            key={service.title}
+          >
+            <div className="service-card-heading">
+              <span className="service-card-index">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <h3>{service.title}</h3>
+            </div>
+
+            <p className="service-card-statement">{service.statement}</p>
+
+            <ul className="service-card-capabilities">
+              {service.capabilities.map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
-          </div>
+
+            {service.process && (
+              <ol className="service-card-process">
+                {service.process.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+            )}
+
+            <div className="service-card-delivery">
+              <span>Delivery</span>
+              <span>{service.delivery}</span>
+            </div>
+          </article>
         ))}
       </div>
 

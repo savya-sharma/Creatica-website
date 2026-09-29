@@ -6,7 +6,7 @@ import { scrambleHoverProps, scrambleTo } from "@/lib/scrambleHover";
 import CornerRightDownIcon from "./icons/CornerRightDownIcon";
 import ArrowUpRightIcon from "./icons/ArrowUpRightIcon";
 
-const EMAIL = "hello@creaticacrown.com";
+const EMAIL = "contact@creaticacrown.com";
 
 // the Social/Pages/Location/E-mail link grid - shared between the site-wide
 // Footer and the Contact page, which both show this exact same block (the
