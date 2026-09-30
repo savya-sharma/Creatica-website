@@ -7,6 +7,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import { scrambleTo } from "@/lib/scrambleHover";
 import RollingText from "./RollingText";
+import { canGoBackInApp } from "@/lib/routeHistory";
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
@@ -35,8 +36,18 @@ function CopyableEmail() {
   }
 
   return (
-    <button type="button" className="policy-copy-email" onClick={handleClick}>
-      <span ref={ref}>{EMAIL}</span>
+    <button
+      type="button"
+      className="policy-copy-email"
+      onClick={handleClick}
+      aria-label={`Copy ${EMAIL} to clipboard`}
+    >
+      {/* scramble-target: GSAP rewrites this span while the "Copied"
+          swap runs, so it must never be what a click lands on (see
+          .scramble-target in globals.css) */}
+      <span className="scramble-target" ref={ref} aria-live="polite">
+        {EMAIL}
+      </span>
     </button>
   );
 }
@@ -451,10 +462,33 @@ function SectionBlock({ block }) {
 export default function Policy({ initialTab = "terms" }) {
   const router = useRouter();
   const pageRef = useRef(null);
-  const [activeTab, setActiveTab] = useState(
-    initialTab === "privacy" ? "privacy" : "terms"
-  );
+  const normalizedTab = initialTab === "privacy" ? "privacy" : "terms";
+  const [activeTab, setActiveTab] = useState(normalizedTab);
+  // the footer's "Terms"/"Privacy" links navigate to this same page with a
+  // different ?tab= - the page re-renders with a new prop but useState
+  // would keep the old tab, so the link appeared to do nothing
+  const [syncedTab, setSyncedTab] = useState(normalizedTab);
+  if (syncedTab !== normalizedTab) {
+    setSyncedTab(normalizedTab);
+    setActiveTab(normalizedTab);
+  }
   const policy = POLICIES[activeTab];
+
+  function selectTab(tabId) {
+    setActiveTab(tabId);
+    // keep the URL shareable/reloadable without a server round-trip: Next
+    // syncs native history.replaceState into its router state
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", tabId);
+    window.history.replaceState(null, "", url);
+  }
+
+  function handleClose() {
+    // opened directly (new tab, shared link): there is no in-site page to
+    // go back to, and router.back() would leave the site or do nothing
+    if (canGoBackInApp()) router.back();
+    else router.push("/");
+  }
 
   // same masked bottom-to-top line reveal used elsewhere on the site
   // (About/Footer/Contact/Work) - skips the paragraphs that carry
@@ -543,7 +577,7 @@ export default function Policy({ initialTab = "terms" }) {
         <button
           type="button"
           className="policy-close"
-          onClick={() => router.back()}
+          onClick={handleClose}
         >
           <span aria-hidden="true">&larr;</span> <RollingText>Close</RollingText>
         </button>
@@ -555,7 +589,8 @@ export default function Policy({ initialTab = "terms" }) {
             className={`policy-tab${
               activeTab === tabId ? " policy-tab--active" : ""
             }`}
-            onClick={() => setActiveTab(tabId)}
+            aria-pressed={activeTab === tabId}
+            onClick={() => selectTab(tabId)}
           >
             <RollingText>{tabPolicy.label}</RollingText>
           </button>

@@ -122,7 +122,12 @@ export default function FooterInfoGrid() {
           E-mail <CornerRightDownIcon />
         </h3>
         <p className="site-footer-email" aria-live="polite">
-          <button type="button" onClick={handleCopyEmail} {...scrambleHoverProps}>
+          <button
+            type="button"
+            onClick={handleCopyEmail}
+            aria-label={`Copy ${EMAIL} to clipboard`}
+            {...scrambleHoverProps}
+          >
             <span className="scramble-target" ref={emailRef}>
               {EMAIL}
             </span>

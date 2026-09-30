@@ -70,6 +70,24 @@ img {
   object-fit: cover;
 }
 
+/* ---- shared interaction baseline ---------------------------------------
+   One focus language for every control that doesn't define its own: a
+   plain ring in the control's own text colour, only for keyboard focus
+   (:focus-visible), never on mouse click. :where() keeps it at zero
+   specificity, so any component's own :focus-visible rule still wins. */
+:where(a, button, input, textarea, select, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+:where(a, button, label, summary, [role="button"], input, textarea, select) {
+  /* no 300ms double-tap-zoom wait before a tap counts as a click */
+  touch-action: manipulation;
+  /* every control here gives its own press/hover feedback - the browser's
+     grey tap flash on top of it read as a glitch */
+  -webkit-tap-highlight-color: transparent;
+}
+
 a,
 p {
   color: var(--color-text);
@@ -101,6 +119,16 @@ nav {
      themselves need to sit above the sitewide Footer's own stacking
      context (position: relative) */
   z-index: 10;
+  /* the bar is a transparent full-width strip: only its actual controls
+     take the pointer, so content scrolled under the empty stretch between
+     them (links, the carousel's drag surface) stays clickable */
+  pointer-events: none;
+}
+
+.nav-logo a,
+.nav-menu-glass,
+.nav-menu-trigger {
+  pointer-events: auto;
 }
 
 .nav-logo {
@@ -439,7 +467,26 @@ nav .nav-menu-circle::before {
   transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-nav .nav-menu-circle:hover,
+/* hover states only where a real hover exists - on touch they were applied
+   by the tap and then stuck until the next tap somewhere else */
+@media (hover: hover) {
+  nav .nav-menu-circle:hover {
+    border-color: rgba(240, 232, 255, 0.7);
+    box-shadow:
+      inset 0 1px 1px var(--menu-glass-highlight),
+      inset 0 -5px 9px rgba(255, 255, 255, 0.08),
+      0 0 16px rgba(88, 106, 107, 0.4);
+  }
+
+  nav .nav-menu-circle:hover::before {
+    transform: translateX(130%);
+  }
+
+  .nav-menu-circle:hover .nav-menu-social-icon {
+    transform: scale(1.15) translateY(-1px);
+  }
+}
+
 nav .nav-menu-circle:focus-visible {
   border-color: rgba(240, 232, 255, 0.7);
   box-shadow:
@@ -448,14 +495,26 @@ nav .nav-menu-circle:focus-visible {
     0 0 16px rgba(88, 106, 107, 0.4);
 }
 
-nav .nav-menu-circle:hover::before,
 nav .nav-menu-circle:focus-visible::before {
   transform: translateX(130%);
 }
 
-.nav-menu-circle:hover .nav-menu-social-icon,
 .nav-menu-circle:focus-visible .nav-menu-social-icon {
   transform: scale(1.15) translateY(-1px);
+}
+
+/* pressed: settles into the glass instead of jumping */
+nav .nav-menu-circle:active .nav-menu-social-icon {
+  transform: scale(0.94);
+  transition-duration: 0.1s;
+}
+
+/* at ~26px the rings were below a comfortable fingertip target on phones */
+@media (pointer: coarse) {
+  nav .nav-menu-circle {
+    width: max(calc(var(--menu-s) * 0.64), 2.25rem);
+    height: max(calc(var(--menu-s) * 0.64), 2.25rem);
+  }
 }
 
 /* the trigger has no material of its own - it is the top-right corner of
@@ -494,9 +553,24 @@ nav .nav-menu-circle:focus-visible::before {
   pointer-events: none;
 }
 
-.nav-menu-trigger:hover::before,
+@media (hover: hover) {
+  .nav-menu-trigger:hover::before {
+    transform: translateX(130%);
+  }
+}
+
 .nav-menu-trigger:focus-visible::before {
   transform: translateX(130%);
+}
+
+/* the dice give the press feedback: a quick squeeze, released smoothly */
+.nav-menu-trigger:active .nav-menu-dice {
+  transform: scale(0.9);
+  transition-duration: 0.1s;
+}
+
+.nav-menu-dice {
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .nav-menu-trigger:focus-visible {
@@ -928,15 +1002,17 @@ section {
      animate for the hover feedback. */
   -webkit-backdrop-filter: blur(10px) saturate(150%);
   backdrop-filter: blur(10px) saturate(150%);
-  transition:
-    border-color 0.35s ease,
-    box-shadow 0.35s ease;
 }
 
-.manifesto-projects li:hover,
+@media (hover: hover) {
+  .manifesto-projects li:hover {
+    box-shadow:
+      inset 0 1px 0 var(--btn-glass-highlight-hover),
+      0 8px 20px -10px var(--btn-glass-shadow);
+  }
+}
+
 .manifesto-projects li:focus-visible {
-  -webkit-backdrop-filter: blur(10px) saturate(150%);
-  backdrop-filter: blur(10px) saturate(150%);
   box-shadow:
     inset 0 1px 0 var(--btn-glass-highlight-hover),
     0 8px 20px -10px var(--btn-glass-shadow);
@@ -1468,7 +1544,6 @@ section {
 .btn-glass {
   --btn-glass-base: rgba(255, 255, 255, 0.14);
   --btn-glass-blur: 12px;
-  --btn-glass-blur-hover: 8px;
   --btn-glass-saturate: 150%;
   --btn-glass-border: rgba(232, 222, 255, 0.5);
   --btn-glass-border-hover: rgba(232, 222, 255, 0.85);
@@ -1496,11 +1571,15 @@ section {
     0 10px 26px -16px var(--btn-glass-shadow);
   -webkit-backdrop-filter: blur(var(--btn-glass-blur)) saturate(var(--btn-glass-saturate));
   backdrop-filter: blur(var(--btn-glass-blur)) saturate(var(--btn-glass-saturate));
+  cursor: pointer;
+  /* only compositor-friendly properties animate. backdrop-filter used to be
+     transitioned too, which re-samples everything behind the glass at a new
+     blur radius every frame and visibly flickered (the reason the manifesto
+     pills already opted out) - the glass keeps one blur in every state. */
   transition:
     border-color 0.35s ease,
     box-shadow 0.35s ease,
-    -webkit-backdrop-filter 0.35s ease,
-    backdrop-filter 0.35s ease;
+    transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /* text/icon content stays above the moving light */
@@ -1561,20 +1640,43 @@ section {
   }
 }
 
-.btn-glass:hover,
+/* one hover language for every glass button: the rim and top highlight
+   brighten and the shadow lifts slightly. Real hover only - on touch it
+   stuck after a tap. Keyboard focus gets the same lift. */
+@media (hover: hover) {
+  /* :where() keeps this at .btn-glass:hover's specificity, so per-button
+     overrides like .manifesto-projects li:hover still win */
+  .btn-glass:hover:where(:not(:disabled)) {
+    border-color: var(--btn-glass-border-hover);
+    box-shadow:
+      inset 0 1px 0 var(--btn-glass-highlight-hover),
+      0 14px 32px -16px var(--btn-glass-shadow);
+  }
+}
+
 .btn-glass:focus-visible {
   border-color: var(--btn-glass-border-hover);
   box-shadow:
     inset 0 1px 0 var(--btn-glass-highlight-hover),
     0 14px 32px -16px var(--btn-glass-shadow);
-  -webkit-backdrop-filter: blur(var(--btn-glass-blur-hover)) saturate(calc(var(--btn-glass-saturate) + 20%));
-  backdrop-filter: blur(var(--btn-glass-blur-hover)) saturate(calc(var(--btn-glass-saturate) + 20%));
+}
+
+/* pressed: a short, tactile sink that releases on the slower ease above.
+   :active clears the moment the pointer is released or slides off, so it
+   can't stick. */
+.btn-glass:active:where(:not(:disabled)) {
+  transform: scale(0.97);
+  transition-duration: 0.35s, 0.35s, 0.1s;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .btn-glass::before,
   .btn-glass::after {
     animation: none;
+  }
+
+  .btn-glass:active:where(:not(:disabled)) {
+    transform: none;
   }
 }
 

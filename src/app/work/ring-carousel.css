@@ -23,6 +23,14 @@
   cursor: grabbing;
 }
 
+/* the ring is keyboard-operable (arrow keys, see RingCarousel.onKeyDown) -
+   keyboard focus needs to be visible; drawn inset since the carousel fills
+   the viewport edge to edge */
+.carousel:focus-visible {
+  outline: 2px solid rgba(206, 207, 201, 0.7);
+  outline-offset: -6px;
+}
+
 .ring-carousel__canvas {
   display: block;
   width: 100%;

@@ -260,18 +260,23 @@ export default function Contact() {
               <span>&rarr;</span>
             </button>
 
-            {status === STATUS.SUCCESS && (
-              <p className="contact-form-status contact-form-status--success">
-                Thanks - your message is on its way. We&apos;ll be in touch
-                within 24 hours.
-              </p>
-            )}
+            {/* always mounted so assistive tech is already watching it when
+                the result lands - a region inserted together with its text
+                is usually not announced */}
+            <div className="contact-form-live" role="status" aria-live="polite">
+              {status === STATUS.SUCCESS && (
+                <p className="contact-form-status contact-form-status--success">
+                  Thanks - your message is on its way. We&apos;ll be in touch
+                  within 24 hours.
+                </p>
+              )}
 
-            {status === STATUS.ERROR && (
-              <p className="contact-form-status contact-form-status--error">
-                {errorMessage}
-              </p>
-            )}
+              {status === STATUS.ERROR && (
+                <p className="contact-form-status contact-form-status--error">
+                  {errorMessage}
+                </p>
+              )}
+            </div>
           </form>
 
           <h2 className="contact-alt-heading">Or reach out directly</h2>

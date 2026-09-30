@@ -641,6 +641,10 @@ export class RingCarousel {
         canvas.addEventListener("pointerdown", this.onPointerDown);
         canvas.addEventListener("pointerup", this.onPointerUp);
         canvas.addEventListener("pointercancel", this.onPointerUp);
+        // capture can also be lost without a pointerup reaching the canvas
+        // (another element grabbing it, the window losing it mid-drag) -
+        // without this the ring stayed "dragging" with the grabbing cursor
+        canvas.addEventListener("lostpointercapture", this.onPointerUp);
         canvas.addEventListener("touchmove", this.onTouchMove, { passive: false });
         window.addEventListener("pointermove", this.onPointerMove, { passive: true });
         document.addEventListener("pointerout", this.onPointerOut);
@@ -725,7 +729,7 @@ export class RingCarousel {
         if (!drag.active) return; // a click: leave the rotation alone
 
         // A pause before release means the user stopped: no fling.
-        if (performance.now() - drag.lastT > 90 || e.type === "pointercancel") this.velocity = 0;
+        if (performance.now() - drag.lastT > 90 || e.type !== "pointerup") this.velocity = 0;
         // Momentum only carries on in the rotation direction. A fling the
         // other way just settles where it was dropped (via the follow easing)
         // and auto-rotation resumes right -> left; the direction never flips.
@@ -766,8 +770,16 @@ export class RingCarousel {
 
     onKeyDown(e) {
         if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+        e.preventDefault();
         // With exponential friction the ring coasts v / friction: one card.
-        this.velocity += (e.key === "ArrowRight" ? 1 : -1) * this.step * this.options.friction;
+        // Clamped like every other input, so a held key (auto-repeat) can't
+        // wind the ring up without limit.
+        const max = this.maxVelocity;
+        this.velocity = clamp(
+            this.velocity + (e.key === "ArrowRight" ? 1 : -1) * this.step * this.options.friction,
+            -max,
+            max
+        );
     }
 
     trackPointer(clientX, clientY) {
@@ -1244,7 +1256,9 @@ export class RingCarousel {
         canvas.removeEventListener("pointerdown", this.onPointerDown);
         canvas.removeEventListener("pointerup", this.onPointerUp);
         canvas.removeEventListener("pointercancel", this.onPointerUp);
+        canvas.removeEventListener("lostpointercapture", this.onPointerUp);
         canvas.removeEventListener("touchmove", this.onTouchMove);
+        this.container.classList.remove("is-dragging");
         window.removeEventListener("pointermove", this.onPointerMove);
         document.removeEventListener("pointerout", this.onPointerOut);
         window.removeEventListener("blur", this.onBlur);

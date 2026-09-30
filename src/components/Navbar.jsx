@@ -31,6 +31,17 @@ const SOCIAL_LINKS = [
   },
 ];
 
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+// created on first use and reused - not re-parsed on every logo click
+let crownBrushEase = null;
+function getCrownBrushEase() {
+  crownBrushEase ??= CustomEase.create("crownBrush", "M0,0 C0.1,0.6 0.25,1 1,1");
+  return crownBrushEase;
+}
+
 const MENU_LINKS = [
   { href: "/about", label: "About" },
   { href: "/work", label: "Work" },
@@ -44,6 +55,14 @@ export default function Navbar() {
   // the standalone /playground route it used to live at has been removed
   const isDark = pathname?.startsWith("/about") || pathname?.startsWith("/work");
 
+  const menuRef = useRef(null);
+  const glassRef = useRef(null);
+  const panelRef = useRef(null);
+  const menuTimeline = useRef(null);
+  const menuOpenRef = useRef(false);
+  const closeMenuRef = useRef(null);
+  const triggerRef = useRef(null);
+
   // hides the fixed navbar on scroll-down and drops it back in on
   // scroll-up, driven by the site's shared Lenis instance so it reacts to
   // wheel/trackpad/touch input identically instead of racing a separate
@@ -53,6 +72,13 @@ export default function Navbar() {
     if (!nav) return;
 
     let hidden = false;
+    // read once and on resize, not on every scroll tick (a forced layout
+    // read inside Lenis's per-frame scroll callback)
+    let navHeight = nav.offsetHeight;
+    const sizeObserver = new ResizeObserver(() => {
+      navHeight = nav.offsetHeight;
+    });
+    sizeObserver.observe(nav);
 
     function setHidden(next) {
       if (next === hidden) return;
@@ -70,7 +96,7 @@ export default function Navbar() {
       // stay visible near the top - avoids hiding before there's anything
       // to scroll past and keeps direction changes right at 0 from
       // flickering the nav
-      if (lenis.scroll < nav.offsetHeight) {
+      if (lenis.scroll < navHeight) {
         setHidden(false);
         return;
       }
@@ -87,20 +113,22 @@ export default function Navbar() {
       unsubscribeScroll = lenis.on("scroll", handleScroll);
     });
 
+    // keyboard users tabbing into a nav that was scrolled away must be able
+    // to see what they're focusing
+    const reveal = () => setHidden(false);
+    nav.addEventListener("focusin", reveal);
+
     return () => {
       cleanupLenisReady();
       unsubscribeScroll();
+      sizeObserver.disconnect();
+      nav.removeEventListener("focusin", reveal);
       gsap.killTweensOf(nav);
     };
   }, []);
 
-  const menuRef = useRef(null);
-  const glassRef = useRef(null);
-  const panelRef = useRef(null);
-  const menuTimeline = useRef(null);
-  const menuBusy = useRef(false);
-  const menuOpenRef = useRef(false);
-  const closeMenuRef = useRef(null);
+  // what the user last asked for (drives aria-expanded / inert straight
+  // away), independent of where the open/close animation currently is
   const [menuOpen, setMenuOpen] = useState(false);
 
   // open: a thin bar grows LEFT from the trigger to the full menu width,
@@ -108,17 +136,26 @@ export default function Navbar() {
   // from a fixed top edge, never scaled from the center), then the links
   // and circles reveal. Close plays the same timeline backwards, so content
   // retracts first, the panel lifts, and the bar pulls back to the trigger.
+  // Either can be interrupted by the other at any point: a click never gets
+  // swallowed because an animation happens to be running - the timeline
+  // just turns around from wherever it is.
   function openMenu() {
     const menu = menuRef.current;
     const glass = glassRef.current;
     const panel = panelRef.current;
-    if (!menu || !glass || !panel || menuBusy.current || menuOpenRef.current) return;
+    if (!menu || !glass || !panel || menuOpenRef.current) return;
 
-    menuBusy.current = true;
     menuOpenRef.current = true;
     setMenuOpen(true);
 
-    menuTimeline.current?.kill();
+    const running = menuTimeline.current;
+    if (running && running.progress() > 0) {
+      // caught mid-close: carry on opening from here
+      running.timeScale(1).play();
+      return;
+    }
+
+    running?.kill();
     const items = panel.querySelectorAll(".nav-menu-reveal");
     const circles = panel.querySelectorAll(".nav-menu-circle");
     const trigger = menu.querySelector(".nav-menu-trigger");
@@ -138,40 +175,52 @@ export default function Navbar() {
     gsap.set(circles, { scale: 0 });
 
     const tl = gsap.timeline({
-      onComplete: () => {
-        menuBusy.current = false;
-      },
       onReverseComplete: () => {
         gsap.set(panel, { visibility: "hidden" });
         gsap.set(glass, { clearProps: "width,height" });
-        menuOpenRef.current = false;
-        menuBusy.current = false;
-        setMenuOpen(false);
       },
     });
     tl.to(glass, { width: fullWidth, duration: 0.5, ease: "power3.inOut" })
       .to(glass, { height: fullHeight, duration: 0.65, ease: "power4.out" }, ">-0.04")
       .to(items, { yPercent: 0, duration: 0.5, stagger: 0.06, ease: "power3.out" }, "-=0.4")
       .to(circles, { scale: 1, duration: 0.5, stagger: 0.08, ease: "back.out(1.6)" }, "<0.15");
+    // reduced motion: same states, reached near-instantly
+    if (prefersReducedMotion()) tl.timeScale(12);
     menuTimeline.current = tl;
   }
 
   function closeMenu() {
     const tl = menuTimeline.current;
-    if (!tl || menuBusy.current || !menuOpenRef.current) return;
-    menuBusy.current = true;
-    tl.timeScale(1.35).reverse();
+    if (!tl || !menuOpenRef.current) return;
+    menuOpenRef.current = false;
+    setMenuOpen(false);
+    tl.timeScale(prefersReducedMotion() ? 12 : 1.35).reverse();
   }
-  closeMenuRef.current = closeMenu;
+  // the latest closeMenu, for the listeners/effects below that outlive a
+  // render (declared before them, so it's assigned before they run)
+  useEffect(() => {
+    closeMenuRef.current = closeMenu;
+  });
 
   function toggleMenu() {
     if (menuOpenRef.current) closeMenu();
     else openMenu();
   }
 
+  // any route change (a menu link, the logo, browser back) leaves the menu
+  // closed on the new page
+  useEffect(() => {
+    closeMenuRef.current?.();
+  }, [pathname]);
+
   useEffect(() => {
     function onKey(event) {
-      if (event.key === "Escape") closeMenuRef.current?.();
+      if (event.key !== "Escape" || !menuOpenRef.current) return;
+      const focusWasInside = menuRef.current?.contains(document.activeElement);
+      closeMenuRef.current?.();
+      // the links are about to go inert - hand focus back to the control
+      // that opened them instead of dropping it on <body>
+      if (focusWasInside) triggerRef.current?.focus();
     }
     function onPointerDown(event) {
       if (menuOpenRef.current && !menuRef.current?.contains(event.target)) {
@@ -206,7 +255,7 @@ export default function Navbar() {
   // clicking the logo bursts small copies of the crown out of its real
   // position; the click is left to bubble so Link navigation is untouched
   function handleLogoClick(event) {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (prefersReducedMotion()) return;
     if (liveParticles.current + BURST_COUNT > MAX_LIVE_PARTICLES) return;
 
     const logo = event.currentTarget.querySelector("img");
@@ -228,7 +277,7 @@ export default function Navbar() {
     const originX = box.left + box.width * CROWN_RECT.left + crownW / 2;
     const originY = box.top + box.height * CROWN_RECT.top + crownH / 2;
     const spread = Math.max(crownW, 60);
-    const brush = CustomEase.create("crownBrush", "M0,0 C0.1,0.6 0.25,1 1,1");
+    const brush = getCrownBrushEase();
 
     for (let i = 0; i < BURST_COUNT; i++) {
       const el = document.createElement("img");
@@ -301,6 +350,26 @@ export default function Navbar() {
       <p className="nav-tagline">Creative Marketing Agency</p>
 
       <div className="nav-menu" ref={menuRef}>
+        {/* first in the DOM so Tab goes trigger -> links (the panel used to
+            come first, so opening the menu from the keyboard and pressing
+            Tab jumped straight past it). Paint order is unchanged: the
+            trigger's own z-index keeps it above the glass either way. */}
+        <button
+          type="button"
+          className="nav-menu-trigger"
+          ref={triggerRef}
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={menuOpen}
+          aria-controls="nav-menu-panel"
+          onClick={toggleMenu}
+        >
+          <span className="nav-menu-dice" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
+        </button>
         <div className="nav-menu-glass" ref={glassRef}>
           <div className="nav-menu-light" aria-hidden="true">
             <i className="nav-menu-blob nav-menu-blob-a" />
@@ -349,21 +418,6 @@ export default function Navbar() {
             </div>
           </div>
         </div>
-        <button
-          type="button"
-          className="nav-menu-trigger"
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
-          aria-expanded={menuOpen}
-          aria-controls="nav-menu-panel"
-          onClick={toggleMenu}
-        >
-          <span className="nav-menu-dice" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-            <i />
-          </span>
-        </button>
       </div>
     </nav>
   );

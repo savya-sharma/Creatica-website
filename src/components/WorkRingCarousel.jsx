@@ -33,6 +33,7 @@ export default function WorkRingCarousel() {
         tabIndex={0}
         aria-roledescription="carousel"
         aria-label="Work"
+        aria-keyshortcuts="ArrowLeft ArrowRight"
       />
     </section>
   );

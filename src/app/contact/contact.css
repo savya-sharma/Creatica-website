@@ -61,10 +61,17 @@
 }
 
 .contact-form {
+  --contact-form-gap: 2.25rem;
   display: flex;
   flex-direction: column;
-  gap: 2.25rem;
+  gap: var(--contact-form-gap);
   margin-bottom: 5rem;
+}
+
+/* the status live region stays mounted (see Contact.jsx); while empty it
+   must not add a gap of its own under the submit button */
+.contact-form-live:empty {
+  margin-top: calc(-1 * var(--contact-form-gap));
 }
 
 .contact-field {
@@ -135,6 +142,20 @@
 
 .contact-radio:checked::before {
   transform: scale(1);
+}
+
+/* appearance:none leaves the custom radio with no focus indication of its
+   own - keyboard users need to see which option arrow keys are on */
+.contact-radio:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 3px;
+}
+
+/* a clickable option with no hover response read as inert text */
+@media (hover: hover) {
+  .contact-radio-option:hover .contact-radio {
+    border-width: 1.5px;
+  }
 }
 
 .contact-input {
@@ -269,7 +290,7 @@
   }
 
   .contact-form {
-    gap: 1.75rem;
+    --contact-form-gap: 1.75rem;
     margin-bottom: 3.5rem;
   }
 }

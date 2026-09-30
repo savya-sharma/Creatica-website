@@ -63,9 +63,19 @@ export function scrambleTo(el, text, { duration = 0.6 } = {}) {
 
 function scrambleIn(e) {
   if (prefersReducedMotion()) return;
+  // a tap is not a hover: on touch the scramble would only start as the
+  // tap navigates/activates, reading as a glitch rather than feedback
+  if (e.pointerType === "touch") return;
 
   const el = resolveTarget(e.currentTarget);
   scrambleTo(el, getOriginalText(el));
+}
+
+// keyboard focus gets the same feedback as a hover - but not the focus a
+// mouse click causes, which the pointerenter has already animated
+function scrambleFocus(e) {
+  if (!e.currentTarget.matches(":focus-visible")) return;
+  scrambleIn(e);
 }
 
 function scrambleOut(e) {
@@ -82,6 +92,8 @@ function scrambleOut(e) {
 }
 
 export const scrambleHoverProps = {
-  onMouseEnter: scrambleIn,
-  onMouseLeave: scrambleOut,
+  onPointerEnter: scrambleIn,
+  onPointerLeave: scrambleOut,
+  onFocus: scrambleFocus,
+  onBlur: scrambleOut,
 };

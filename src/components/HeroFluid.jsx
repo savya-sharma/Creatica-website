@@ -23,6 +23,10 @@ const CONFIG = {
   BRUSH_STIFFNESS: 16,
   VELOCITY_SMOOTHING: 10,
   MIN_SPEED: 40,
+  // safety cap on the brush velocity (px/s) - far above any real stroke, it
+  // only stops a hitch from turning into one oversized impulse
+  MAX_SPEED: 6000,
+  MAX_SPLATS: 8,
   SPLAT_FORCE: 0.55,
   SPLAT_RADIUS: 0.001,
   SPLAT_RADIUS_SPEED: 0.002,
@@ -312,8 +316,26 @@ function createFluid() {
     max: { value: CONFIG.DISPLACE_MAX },
   };
 
-  function resize(simW, simH) {
-    if (state.simW === simW && state.simH === simH) return;
+  const savedClear = new THREE.Color();
+  function clearTargets(renderer, targets) {
+    const previousTarget = renderer.getRenderTarget();
+    const previousAlpha = renderer.getClearAlpha();
+    renderer.getClearColor(savedClear);
+    renderer.setClearColor(0x000000, 0);
+    for (const target of targets) {
+      renderer.setRenderTarget(target);
+      renderer.clear(true, false, false);
+    }
+    renderer.setClearColor(savedClear, previousAlpha);
+    renderer.setRenderTarget(previousTarget);
+  }
+
+  // Allocates every buffer and clears it to the neutral state right away, so
+  // no pass (and no visible frame) ever samples an unallocated target or a
+  // null texture - three binds nothing for null, which WebGL samples as
+  // (0,0,0,1), i.e. a 1px text displacement until the first step.
+  function resize(renderer, simW, simH) {
+    if (state.simW === simW && state.simH === simH) return false;
     state.vel?.dispose();
     state.dye?.dispose();
     state.pressure?.dispose();
@@ -324,10 +346,19 @@ function createFluid() {
     state.dye = makePair(simW, simH);
     state.pressure = makePair(simW, simH);
     state.divergence = makeTarget(simW, simH);
+    clearTargets(renderer, [
+      state.vel.read, state.vel.write,
+      state.dye.read, state.dye.write,
+      state.pressure.read, state.pressure.write,
+      state.divergence,
+    ]);
+    display.uniforms.uDye.value = state.dye.read.texture;
+    textUniforms.disp.value = state.dye.read.texture;
     display.uniforms.uTexel.value.set(1 / simW, 1 / simH);
     for (const m of [mats.advect, mats.divergence, mats.pressure, mats.gradient]) {
       m.uniforms.uTexel.value.set(1 / simW, 1 / simH);
     }
+    return true;
   }
 
   function run(renderer, material, target) {
@@ -347,7 +378,7 @@ function createFluid() {
     pair.swap();
   }
 
-  function step(renderer, dt, splats, aspect, cellPx, iterations) {
+  function step(renderer, dt, splats, splatCount, aspect, cellPx, iterations) {
     const { vel, dye, pressure, divergence } = state;
     const previousTarget = renderer.getRenderTarget();
     const previousAutoClear = renderer.autoClear;
@@ -361,7 +392,8 @@ function createFluid() {
     run(renderer, mats.advect, vel.write);
     vel.swap();
 
-    for (const s of splats) {
+    for (let i = 0; i < splatCount; i++) {
+      const s = splats[i];
       splat(renderer, vel, s.x, s.y, s.vx, s.vy, s.radius, aspect);
       splat(renderer, dye, s.x, s.y, s.a, s.b, s.radius, aspect);
     }
@@ -410,6 +442,8 @@ function createFluid() {
     state.divergence?.dispose();
     state.vel = state.dye = state.pressure = state.divergence = null;
     state.simW = state.simH = 0;
+    display.uniforms.uDye.value = null;
+    textUniforms.disp.value = null;
     Object.values(mats).forEach((m) => m.dispose());
     display.dispose();
     geometry.dispose();
@@ -418,17 +452,45 @@ function createFluid() {
   // Compiling ~8 programs lazily inside the first frames blocks the main
   // thread on each link. compileAsync uses KHR_parallel_shader_compile where
   // available, so the driver compiles them all in the background instead.
+  // three keys each program on the colour space of the target bound while it
+  // is built (linear for a render target, sRGB for the canvas), so the pass
+  // materials must be compiled with a render target bound: compiled against
+  // the canvas they never match, and the first step() used to link all six
+  // synchronously - a long stall on a first visit, before the GPU program
+  // cache is warm, that the next frame turned into a jump of the brush.
   function warm(renderer) {
-    const warmScene = new THREE.Scene();
-    for (const material of [...Object.values(mats), display]) {
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.frustumCulled = false;
-      warmScene.add(mesh);
+    const sceneOf = (materials) => {
+      const s = new THREE.Scene();
+      for (const material of materials) {
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.frustumCulled = false;
+        s.add(mesh);
+      }
+      return s;
+    };
+    const passScene = sceneOf(Object.values(mats));
+    const screenScene = sceneOf([display]);
+    const probe = makeTarget(1, 1);
+    const previousTarget = renderer.getRenderTarget();
+    let pending;
+    try {
+      renderer.setRenderTarget(probe);
+      const passes = renderer.compileAsync(passScene, passCamera);
+      renderer.setRenderTarget(null);
+      const screen = renderer.compileAsync(screenScene, passCamera);
+      pending = Promise.all([passes, screen]);
+    } catch (error) {
+      pending = Promise.reject(error);
+    } finally {
+      renderer.setRenderTarget(previousTarget);
     }
-    return renderer
-      .compileAsync(warmScene, passCamera)
+    return pending
       .catch(() => {})
-      .finally(() => warmScene.clear());
+      .finally(() => {
+        passScene.clear();
+        screenScene.clear();
+        probe.dispose();
+      });
   }
 
   return { resize, step, warm, dispose, displayMesh, textUniforms, state };
@@ -494,7 +556,54 @@ function collectLines(el, upper) {
     .map((line) => (upper ? line.toUpperCase() : line));
 }
 
-function HeroText({ root, selector, font, textUniforms, onSynced }) {
+// Troika copies stay hidden until every one of them is typeset and its
+// program linked, then all appear in the same frame the DOM text goes
+// transparent - never a heading with neither copy, or with both drawn.
+function createReveal(root, total) {
+  const texts = new Set();
+  const ready = new Set();
+  let shown = false;
+  return {
+    add(text) {
+      texts.add(text);
+      text.visible = shown;
+    },
+    remove(text, key) {
+      texts.delete(text);
+      ready.delete(key);
+    },
+    ready(key) {
+      ready.add(key);
+      if (shown || ready.size < total) return;
+      shown = true;
+      texts.forEach((t) => {
+        t.visible = true;
+      });
+      root.classList.add("hero-troika-ready");
+    },
+    // hand the hero back to its DOM text if the canvas goes away
+    reset() {
+      shown = false;
+      ready.clear();
+      texts.forEach((t) => {
+        t.visible = false;
+      });
+      root.classList.remove("hero-troika-ready");
+    },
+  };
+}
+
+function precompile(gl, object, camera, scene) {
+  try {
+    return gl.compileAsync(object, camera, scene).catch(() => {});
+  } catch {
+    return Promise.resolve();
+  }
+}
+
+function HeroText({ root, selector, font, textUniforms, reveal }) {
+  const gl = useThree((s) => s.gl);
+  const camera = useThree((s) => s.camera);
   const scene = useThree((s) => s.scene);
   const invalidate = useThree((s) => s.invalidate);
   const size = useThree((s) => s.size);
@@ -513,11 +622,17 @@ function HeroText({ root, selector, font, textUniforms, onSynced }) {
     text.material = material;
     text.renderOrder = 2;
     text.frustumCulled = false;
+    reveal.add(text);
     scene.add(text);
 
     let disposed = false;
+    // measuring before the page's web fonts are in lays the copy out with the
+    // fallback font's line breaks, which then visibly re-typesets once they
+    // land (first visit only - later visits have them cached)
+    let fontsReady = false;
+    let compiled = false;
     function measure() {
-      if (disposed) return;
+      if (disposed || !fontsReady) return;
       const cs = getComputedStyle(el);
       const fontSize = parseFloat(cs.fontSize);
       const lineHeight = parseFloat(cs.lineHeight);
@@ -546,8 +661,18 @@ function HeroText({ root, selector, font, textUniforms, onSynced }) {
       );
       text.sync(() => {
         if (disposed) return;
-        onSynced();
-        invalidate();
+        if (compiled) {
+          invalidate();
+          return;
+        }
+        compiled = true;
+        // link the SDF program off the main thread before the copy is shown,
+        // instead of synchronously inside its first visible frame
+        precompile(gl, text, camera, scene).then(() => {
+          if (disposed) return;
+          reveal.ready(selector);
+          invalidate();
+        });
       });
     }
     // The first typeset (font parse + glyph SDF rendering, which Troika does
@@ -559,19 +684,23 @@ function HeroText({ root, selector, font, textUniforms, onSynced }) {
 
     const observer = new ResizeObserver(measure);
     observer.observe(root);
-    document.fonts.ready.then(measure);
-    measure();
+    // resolves in a microtask when the fonts are already loaded
+    document.fonts.ready.then(() => {
+      fontsReady = true;
+      measure();
+    });
 
     return () => {
       disposed = true;
       measureRef.current = null;
       observer.disconnect();
+      reveal.remove(text, selector);
       scene.remove(text);
       text.dispose();
       material.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [root, selector, font, scene, textUniforms]);
+  }, [root, selector, font, scene, textUniforms, reveal]);
 
   useEffect(() => {
     measureRef.current?.();
@@ -585,6 +714,16 @@ const TEXTS = [
   { selector: ".hero-heading", font: "/fonts/AppleRegular.ttf" },
 ];
 
+// tx/ty is the raw pointer, bx/by the brush; the brush is only ever seeded
+// from a real pointer sample (see useFrame), never from this origin
+function resetPointer(p) {
+  return Object.assign(p, {
+    tx: 0, ty: 0, inside: false, init: false,
+    bx: 0, by: 0, svx: 0, svy: 0, phase: 0,
+    activeUntil: 0, visible: true,
+  });
+}
+
 function Scene({ root, tablet }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
@@ -592,14 +731,24 @@ function Scene({ root, tablet }) {
   const invalidate = useThree((s) => s.invalidate);
 
   const fluid = useMemo(() => createFluid(), []);
-  const pointer = useRef({
-    tx: 0, ty: 0, inside: false, init: false,
-    bx: 0, by: 0, svx: 0, svy: 0, phase: 0,
-    activeUntil: 0, visible: true,
-  });
-  const splats = useRef([]);
+  const reveal = useMemo(() => createReveal(root, TEXTS.length), [root]);
+  const pointer = useRef(null);
+  if (pointer.current === null) pointer.current = resetPointer({});
+  // fixed pool: the frame loop fills it instead of allocating splats
+  const splats = useRef(null);
+  if (splats.current === null) {
+    splats.current = Array.from({ length: CONFIG.MAX_SPLATS }, () => ({
+      x: 0, y: 0, vx: 0, vy: 0, radius: 0, a: 0, b: 0,
+    }));
+  }
   const warmed = useRef(false);
-  const syncedCount = useRef(0);
+  // the first step after (re)initialising uses a nominal frame: the clock's
+  // first delta spans canvas creation and set-up, not a real frame
+  const fresh = useRef(true);
+  // whether the previous frame asked for this one. With frameloop="demand"
+  // the loop sleeps once the fluid settles, and the next frame's delta is
+  // then the whole idle gap - not a long frame to catch up on
+  const looping = useRef(false);
 
   const simHeight = tablet ? CONFIG.SIM_HEIGHT_TABLET : CONFIG.SIM_HEIGHT_DESKTOP;
   const iterations = tablet
@@ -608,6 +757,12 @@ function Scene({ root, tablet }) {
 
   useEffect(() => {
     let cancelled = false;
+    // every mount (including a Strict Mode re-run, which reuses the memoised
+    // fluid and these refs) starts from the same neutral state
+    resetPointer(pointer.current);
+    warmed.current = false;
+    fresh.current = true;
+    looping.current = false;
     scene.add(fluid.displayMesh);
     fluid.warm(gl).then(() => {
       if (cancelled) return;
@@ -616,17 +771,26 @@ function Scene({ root, tablet }) {
     });
     return () => {
       cancelled = true;
+      warmed.current = false;
       scene.remove(fluid.displayMesh);
       fluid.dispose();
     };
   }, [scene, fluid, gl, invalidate]);
 
+  useEffect(() => () => reveal.reset(), [reveal]);
+
   useEffect(() => {
-    const simW = Math.max(2, Math.round((simHeight * size.width) / Math.max(size.height, 1)));
-    fluid.resize(simW, simHeight);
+    // a zero-sized first layout would give an infinite aspect / texel size
+    if (size.width < 1 || size.height < 1) return;
+    const simW = Math.max(2, Math.round((simHeight * size.width) / size.height));
+    if (fluid.resize(gl, simW, simHeight)) {
+      // fresh buffers: re-seed the brush rather than streak across the reset
+      pointer.current.init = false;
+      fresh.current = true;
+    }
     fluid.textUniforms.size.value.set(size.width, size.height);
     invalidate();
-  }, [fluid, simHeight, size.width, size.height, invalidate]);
+  }, [fluid, gl, simHeight, size.width, size.height, invalidate]);
 
   useEffect(() => {
     const p = pointer.current;
@@ -666,13 +830,23 @@ function Scene({ root, tablet }) {
     // a long frame (power saving, throttled GPU, busy tab) must still move
     // the fluid by the real elapsed time, so the step is only capped well
     // above 30fps - the semi-Lagrangian advection stays stable at that size
-    const dt = Math.min(delta, 1 / 12) || 1 / 60;
+    // Waking from sleep used to take that gap as a 1/12s frame: 5x the
+    // normal force and ink in one splat, and the brush lunging 74% of the
+    // way to the pointer - a burst at the start of every stroke begun after
+    // the pointer had rested (the very first one after load included).
+    const resumed = !looping.current;
+    const dt = fresh.current || resumed ? 1 / 60 : Math.min(delta, 1 / 12) || 1 / 60;
+    // the brush was frozen while asleep (or while the hero was scrolled
+    // away), so it restarts from the pointer instead of streaking to it
+    if (resumed) p.init = false;
     // splats inject force and ink once per frame, so what one frame adds is
     // scaled by its length relative to a 60fps frame: the same pointer motion
     // then puts in the same total force and ink at any frame rate
     const frameScale = dt * 60;
     const list = splats.current;
-    list.length = 0;
+    let count = 0;
+    const ready =
+      warmed.current && fluid.state.vel !== null && width >= 1 && height >= 1;
 
     if (p.inside) {
       if (!p.init) {
@@ -693,8 +867,14 @@ function Scene({ root, tablet }) {
         p.bx = nx;
         p.by = ny;
 
-        const speed = Math.hypot(p.svx, p.svy);
-        if (speed > CONFIG.MIN_SPEED) {
+        let speed = Math.hypot(p.svx, p.svy);
+        if (speed > CONFIG.MAX_SPEED) {
+          const s = CONFIG.MAX_SPEED / speed;
+          p.svx *= s;
+          p.svy *= s;
+          speed = CONFIG.MAX_SPEED;
+        }
+        if (ready && speed > CONFIG.MIN_SPEED) {
           const cellPx = height / fluid.state.simH;
           const norm = Math.min(speed / 1800, 1);
           const ink = CONFIG.INK_BASE + norm * CONFIG.INK_SPEED;
@@ -707,20 +887,22 @@ function Scene({ root, tablet }) {
           const travel = Math.hypot(p.bx - prevX, p.by - prevY);
           const steps =
             frameScale > 1.5
-              ? Math.min(8, Math.max(1, Math.ceil(travel / (Math.sqrt(radius) * height * 1.2))))
+              ? Math.min(
+                  CONFIG.MAX_SPLATS,
+                  Math.max(1, Math.ceil(travel / (Math.sqrt(radius) * height * 1.2)))
+                )
               : 1;
           const share = frameScale / steps;
           for (let i = 1; i <= steps; i++) {
             const t = i / steps;
-            list.push({
-              x: (prevX + (p.bx - prevX) * t) / width,
-              y: 1 - (prevY + (p.by - prevY) * t) / height,
-              vx: (p.svx / cellPx) * CONFIG.SPLAT_FORCE * share,
-              vy: (p.svy / cellPx) * CONFIG.SPLAT_FORCE * share,
-              radius,
-              a: ink * (1 - towardB) * share,
-              b: ink * towardB * share,
-            });
+            const s = list[count++];
+            s.x = (prevX + (p.bx - prevX) * t) / width;
+            s.y = 1 - (prevY + (p.by - prevY) * t) / height;
+            s.vx = (p.svx / cellPx) * CONFIG.SPLAT_FORCE * share;
+            s.vy = (p.svy / cellPx) * CONFIG.SPLAT_FORCE * share;
+            s.radius = radius;
+            s.a = ink * (1 - towardB) * share;
+            s.b = ink * towardB * share;
           }
         }
       }
@@ -728,18 +910,21 @@ function Scene({ root, tablet }) {
       p.init = false;
     }
 
-    if (warmed.current && fluid.state.vel) {
+    if (ready) {
+      fresh.current = false;
       fluid.step(
         state.gl,
         dt,
         list,
+        count,
         width / height,
         height / fluid.state.simH,
         iterations
       );
     }
 
-    if (p.visible && performance.now() < p.activeUntil) state.invalidate();
+    looping.current = p.visible && performance.now() < p.activeUntil;
+    if (looping.current) state.invalidate();
   });
 
   return (
@@ -751,23 +936,11 @@ function Scene({ root, tablet }) {
           selector={t.selector}
           font={t.font}
           textUniforms={fluid.textUniforms}
-          onSynced={() => {
-            syncedCount.current = Math.min(syncedCount.current + 1, TEXTS.length);
-            if (syncedCount.current >= TEXTS.length) {
-              root.classList.add("hero-troika-ready");
-            }
-          }}
+          reveal={reveal}
         />
       ))}
-      <GLCleanup gl={gl} root={root} />
     </>
   );
-}
-
-// hand the hero back to its DOM text if the canvas goes away
-function GLCleanup({ root }) {
-  useEffect(() => () => root.classList.remove("hero-troika-ready"), [root]);
-  return null;
 }
 
 // Only cheap checks here. The old version created a throw-away WebGL2
@@ -807,7 +980,11 @@ export default function HeroFluid() {
     // preloader hands off, per the reveal below, without ever blocking a
     // menu/click on a page the preloader isn't also covering.
     setState({ enabled: true, root, tablet: window.innerWidth < 1024 });
-    const onResize = () => setState((prev) => (prev.enabled ? { ...prev, tablet: window.innerWidth < 1024 } : prev));
+    const onResize = () =>
+      setState((prev) => {
+        const tablet = window.innerWidth < 1024;
+        return prev.enabled && prev.tablet !== tablet ? { ...prev, tablet } : prev;
+      });
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);

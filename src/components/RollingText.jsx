@@ -41,6 +41,12 @@ export default function RollingText({ children, as: Tag = "span", className = ""
     function rollOut() {
       gsap.to(track, { yPercent: 0, duration: DURATION, ease: EASE, overwrite: "auto" });
     }
+    // pointer events rather than mouseenter/leave: a touch tap also emits
+    // compatibility mouse events, which rolled the label on tap and left
+    // it "hovered" until the next tap elsewhere
+    function handleEnter(event) {
+      if (event.pointerType !== "touch") rollIn();
+    }
     function handleFocus(event) {
       // only the keyboard-navigation case, not an incidental focus from a
       // click that a mouseenter already animated
@@ -48,14 +54,14 @@ export default function RollingText({ children, as: Tag = "span", className = ""
       rollIn();
     }
 
-    target.addEventListener("mouseenter", rollIn);
-    target.addEventListener("mouseleave", rollOut);
+    target.addEventListener("pointerenter", handleEnter);
+    target.addEventListener("pointerleave", rollOut);
     target.addEventListener("focus", handleFocus, true);
     target.addEventListener("blur", rollOut, true);
 
     return () => {
-      target.removeEventListener("mouseenter", rollIn);
-      target.removeEventListener("mouseleave", rollOut);
+      target.removeEventListener("pointerenter", handleEnter);
+      target.removeEventListener("pointerleave", rollOut);
       target.removeEventListener("focus", handleFocus, true);
       target.removeEventListener("blur", rollOut, true);
       gsap.killTweensOf(track);

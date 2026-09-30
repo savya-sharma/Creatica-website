@@ -28,7 +28,13 @@ export default function Footer() {
   const hideOnWorkPage = pathname?.startsWith("/work");
 
   // same masked bottom-to-top line reveal used elsewhere on the site,
-  // triggered once when the footer itself scrolls into view
+  // triggered once when the footer itself scrolls into view. The footer
+  // lives in the root layout and outlives every page, so this is rebuilt
+  // per route: the footer element is recreated after /work or /contact
+  // (which render none), and each page puts it at a different scroll
+  // position - a reveal set up once for the first page could point at a
+  // removed element or wait at an offset the new page never reaches,
+  // leaving the footer's text hidden.
   useEffect(() => {
     const footer = footerRef.current;
     if (!footer) return;
@@ -81,7 +87,7 @@ export default function Footer() {
     return () => {
       split.revert();
     };
-  }, []);
+  }, [pathname]);
 
   if (hideOnContactPage || hideOnWorkPage) return null;
 

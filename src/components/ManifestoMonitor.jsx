@@ -174,6 +174,10 @@ export default function ManifestoMonitor() {
 
     const mouse = { x: 0, y: 0 };
     const lerpedMouse = { x: 0, y: 0 };
+    // latest raw pointer position; resolved against the container's rect
+    // once per rendered frame instead of once per pointermove event (a
+    // high-polling mouse fires several per frame, each forcing a layout read)
+    const rawPointer = { x: 0, y: 0, pending: false };
     const timer = new THREE.Timer();
 
     // the aspect ratio this scene was composed at (roughly the desktop
@@ -247,6 +251,11 @@ export default function ManifestoMonitor() {
       timer.update();
       displayMaterial.uniforms.time.value = timer.getElapsed();
 
+      if (rawPointer.pending) {
+        rawPointer.pending = false;
+        resolvePointer(rawPointer.x, rawPointer.y);
+      }
+
       lerpedMouse.x = gsap.utils.interpolate(lerpedMouse.x, mouse.x, 0.05);
       lerpedMouse.y = gsap.utils.interpolate(lerpedMouse.y, mouse.y, 0.05);
       monitorGroup.rotation.x = lerpedMouse.y * 0.15;
@@ -277,31 +286,40 @@ export default function ManifestoMonitor() {
     // whether the cursor is within the container's rect directly sidesteps
     // that entirely - the image/glitch hover logic below never touches any
     // of this, so it stays completely decoupled from the 3D transform
-    function handlePointerMove(e) {
-      if (!isIntersecting) return;
-
+    function resolvePointer(clientX, clientY) {
       const rect = container.getBoundingClientRect();
       const withinBounds =
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom;
+        rect.width > 0 &&
+        rect.height > 0 &&
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom;
 
       if (withinBounds) {
-        mouse.x = ((e.clientX - rect.left) / rect.width - 0.5) * 10;
-        mouse.y = ((e.clientY - rect.top) / rect.height - 0.5) * 5;
+        mouse.x = ((clientX - rect.left) / rect.width - 0.5) * 10;
+        mouse.y = ((clientY - rect.top) / rect.height - 0.5) * 5;
       } else {
         mouse.x = 0;
         mouse.y = 0;
       }
     }
 
+    function handlePointerMove(e) {
+      // a finger dragging to scroll the page is not aiming at the monitor
+      if (!isIntersecting || e.pointerType === "touch") return;
+      rawPointer.x = e.clientX;
+      rawPointer.y = e.clientY;
+      rawPointer.pending = true;
+    }
+
     function handlePointerLeave() {
+      rawPointer.pending = false;
       mouse.x = 0;
       mouse.y = 0;
     }
 
-    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
     document.documentElement.addEventListener("pointerleave", handlePointerLeave);
 
     const resizeObserver = new ResizeObserver(resize);
@@ -309,8 +327,14 @@ export default function ManifestoMonitor() {
 
     let glitchAnimation = null;
     const glitchState = { intensity: 0 };
+    let currentSrc = DEFAULT_DISPLAY_IMAGE;
 
     function setDisplayImage(src) {
+      // one pill can report the same intent twice in a row (a click fires
+      // mouseenter, then focus, then click) - only a real change of image
+      // gets the glitch transition, never a restart of the one in flight
+      if (src === currentSrc) return;
+      currentSrc = src;
       const texture = loadTexture(src);
       displayMaterial.uniforms.map.value = texture;
 
@@ -400,6 +424,10 @@ export default function ManifestoMonitor() {
       // <li> something to actually fire on, since a plain <li> is never
       // natively focusable
       li.addEventListener("focus", handler);
+      // a tap (tablets show this list but have no hover) or a click that
+      // comes after the pointer already previewed it - harmless either way,
+      // setDisplayImage ignores a repeat of the current image
+      li.addEventListener("click", handler);
       return [li, handler];
     });
 
@@ -434,6 +462,7 @@ export default function ManifestoMonitor() {
       itemHandlers.forEach(([li, handler]) => {
         li.removeEventListener("mouseenter", handler);
         li.removeEventListener("focus", handler);
+        li.removeEventListener("click", handler);
       });
       listEl.removeEventListener("mouseleave", handleListLeave);
       listEl.removeEventListener("focusout", handleListFocusOut);
