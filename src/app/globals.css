@@ -138,7 +138,10 @@ nav {
 
 .nav-logo img {
   display: block;
-  height: 2.25rem;
+  /* LOGO-NAV.svg is the logo without its tagline row (1280 of the original
+     1701 units tall): this keeps the wordmark itself exactly the size it
+     was at the previous 2.25rem full-logo height */
+  height: calc(2.25rem * 1280 / 1701);
   width: auto;
   object-fit: contain;
 }

@@ -104,52 +104,101 @@ export default function ManifestoMonitor() {
       monitorGroup.add(model);
     });
 
-    const textureLoader = new THREE.TextureLoader();
+    // The brand images are large (most are 3353x3763 - 48 MB each once
+    // decoded). Loaded through an <img>, the decode and the flip-Y happen
+    // synchronously inside the GPU upload, on the main thread: preloading
+    // all of them at once used to freeze the page for seconds right as the
+    // preloader handed over to the Hero, stalling its fluid. createImageBitmap
+    // decodes (and flips) off the main thread instead; the pixels reaching
+    // the GPU are identical - an sRGB texture is uploaded with no colour
+    // conversion and no premultiply either way.
+    const bitmapLoader =
+      typeof createImageBitmap === "function"
+        ? new THREE.ImageBitmapLoader().setOptions({
+            imageOrientation: "flipY",
+            premultiplyAlpha: "none",
+          })
+        : null;
+    const imageLoader = bitmapLoader ? null : new THREE.ImageLoader();
     const textureCache = {};
+    const textureReady = {};
 
+    // Returns the texture straight away (callers bind it immediately); its
+    // image arrives once decoded, and three uploads it on first use - or
+    // earlier, from the idle-time preload below.
     function loadTexture(src) {
       if (textureCache[src]) return textureCache[src];
 
-      const texture = textureLoader.load(src, () => {
-        // decoding a large image is already async (the browser's own image
-        // pipeline), but uploading it to the GPU is not - left to three.js's
-        // default lazy behaviour, that upload happens on whichever render
-        // call first actually draws this texture. For a pill hovered for
-        // the first time, that's the exact same frame GSAP's rolling-text
-        // tween is trying to animate on, and a large-enough image (see the
-        // note on MONITOR_PROJECTS above) can block that frame long enough
-        // for GSAP's ticker to see a big jump in elapsed time and snap the
-        // tween near its end instead of animating it - looking like the
-        // hover "glitches". initTexture() forces the upload right away,
-        // here, instead of leaving it to whenever the texture is first used.
-        renderer.initTexture(texture);
-        displayMaterial.uniforms.imageAspect.value =
-          texture.image.width / texture.image.height;
-      });
-
+      const texture = new THREE.Texture();
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.minFilter = THREE.LinearFilter;
       texture.magFilter = THREE.LinearFilter;
+      // an ImageBitmap was already flipped while decoding
+      texture.flipY = !bitmapLoader;
       textureCache[src] = texture;
+
+      textureReady[src] = new Promise((resolve) => {
+        const onImage = (image) => {
+          if (disposed) {
+            image.close?.();
+            resolve();
+            return;
+          }
+          texture.image = image;
+          texture.needsUpdate = true;
+          // only the image actually on screen sets the screen's aspect - a
+          // background preload finishing must not re-fit the current image
+          if (displayMaterial.uniforms.map.value === texture) {
+            displayMaterial.uniforms.imageAspect.value = image.width / image.height;
+          }
+          resolve();
+        };
+        if (bitmapLoader) {
+          bitmapLoader.load(src, onImage, undefined, () => resolve());
+        } else {
+          imageLoader.load(
+            src,
+            // decode() also runs off the main thread where it can
+            (img) => img.decode().catch(() => {}).then(() => onImage(img)),
+            undefined,
+            () => resolve()
+          );
+        }
+      });
 
       return texture;
     }
 
     const defaultTexture = loadTexture(DEFAULT_DISPLAY_IMAGE);
 
-    // pre-warm every brand's texture so no hover has to pay for a decode+
-    // GPU-upload it's the first to trigger - but only once the entry
-    // preloader has actually finished, not merely once this whole function
-    // starts (still gated behind whenIdle, see the effect below). whenIdle's
-    // own 1500ms ceiling can - and does - fire while the preloader's tile
-    // animation is still running, and kicking off 23 concurrent image loads
-    // at that exact moment competed with it for bandwidth/CPU and made the
-    // preloader itself visibly laggier. Waiting for the real "done" signal
-    // instead means this heavy one-time cost lands only once the page has
-    // nothing more important in flight.
+    // Pre-warm every brand's texture so no hover has to pay for a decode +
+    // GPU upload it's the first to trigger - only once the entry preloader
+    // has finished (kicking this off during it competed with its tile
+    // animation), and then one image at a time: each is decoded off-thread,
+    // then uploaded in browser idle time. Uploading a 48 MB texture still
+    // costs the main thread, so they're never batched, and never land in the
+    // middle of a busy frame - the Hero (fluid, text) keeps its frames
+    // through the whole preload. A pill hovered before its turn simply loads
+    // that one right away, as before.
+    let cancelPendingUpload = () => {};
+    async function preloadTextures() {
+      for (const project of MONITOR_PROJECTS) {
+        if (disposed) return;
+        const texture = loadTexture(project.image);
+        await textureReady[project.image];
+        if (disposed) return;
+        if (!texture.image) continue; // failed to load - a hover retries nothing, same as before
+        await new Promise((resolve) => {
+          // initTexture is a no-op for a texture a hover already uploaded
+          cancelPendingUpload = whenIdle(() => {
+            if (!disposed) renderer.initTexture(texture);
+            resolve();
+          });
+        });
+      }
+    }
     const cancelTexturePreload = onPreloaderDone(() => {
-      if (disposed) return;
-      MONITOR_PROJECTS.forEach((project) => loadTexture(project.image));
+      if (!disposed) preloadTextures();
     });
 
     const displayMaterial = new THREE.ShaderMaterial({
@@ -450,6 +499,7 @@ export default function ManifestoMonitor() {
     return () => {
       disposed = true;
       cancelTexturePreload();
+      cancelPendingUpload();
       stopAnimating();
       stopAutoCycle();
       mobileQuery.removeEventListener("change", handleMobileChange);
@@ -478,7 +528,11 @@ export default function ManifestoMonitor() {
 
       displayGeometry.dispose();
       displayMaterial.dispose();
-      Object.values(textureCache).forEach((texture) => texture.dispose());
+      Object.values(textureCache).forEach((texture) => {
+        texture.dispose();
+        // decoded bitmaps hold their pixels outside the GPU texture too
+        texture.image?.close?.();
+      });
 
       envTexture.dispose();
       pmremGenerator.dispose();

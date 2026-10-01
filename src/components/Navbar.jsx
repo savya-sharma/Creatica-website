@@ -11,10 +11,12 @@ import { onLenisReady } from "@/lib/lenis";
 
 gsap.registerPlugin(CustomEase);
 
-// where the crown sits inside LOGO.svg, as fractions of the rendered logo
-// image (measured by overlaying CROWN.svg on the logo; the crown is merged
-// into the letter paths there so it can't be targeted directly)
-const CROWN_RECT = { left: 0.3647, top: 0, width: 0.1813, height: 0.324 };
+// where the crown sits inside the navbar logo, as fractions of the rendered
+// logo image (measured by overlaying CROWN.svg on the logo; the crown is
+// merged into the letter paths there so it can't be targeted directly).
+// LOGO-NAV.svg is LOGO.svg without the tagline row - same width, cropped
+// from 1701 to 1280 units tall - so the crown's height fraction scales up.
+const CROWN_RECT = { left: 0.3647, top: 0, width: 0.1813, height: 0.324 * (1701 / 1280) };
 const BURST_COUNT = 11;
 const MAX_LIVE_PARTICLES = 24;
 
@@ -343,7 +345,7 @@ export default function Navbar() {
           aria-label="Creatica Crown home"
           onClick={handleLogoClick}
         >
-          <img src="/logo/LOGO.svg" alt="Creatica Crown" />
+          <img src="/logo/LOGO-NAV.svg" alt="Creatica Crown" />
         </Link>
       </div>
 
