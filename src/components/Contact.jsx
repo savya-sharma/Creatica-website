@@ -8,39 +8,51 @@ import { SplitText } from "gsap/SplitText";
 import FooterInfoGrid from "./FooterInfoGrid";
 import RollingText from "./RollingText";
 import CornerDownRightIcon from "./icons/CornerDownRightIcon";
+import {
+  PROJECT_TYPE_OPTIONS,
+  BUDGET_OPTIONS,
+  FOUND_THROUGH_OPTIONS,
+  EMPTY_VALUES,
+  FIELD_ORDER,
+  toPayload,
+  validate,
+  describeErrors,
+} from "@/lib/contactForm";
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
-const BUILDING_OPTIONS = [
-  "Branding",
-  "Social media handling",
-  "an e-commerce website",
-  "video creation",
-  "multiple / something complex",
-  "not sure - let's talk",
-];
+const STATUS_ID = "contact-form-status";
+// a hung request must end in a visible error, never an endless "Sending..."
+const REQUEST_TIMEOUT_MS = 15000;
+const GENERIC_ERROR = "Something went wrong. Please try again.";
 
-const BUDGET_OPTIONS = [
-  "< $15 000",
-  "$15 000-25 000",
-  "$25 000-40 000",
-  "$40 000-60 000",
-  "$60 000-100 000",
-  "$100 000+",
-];
-
-const SOURCE_OPTIONS = ["LinkedIn", "Instagram", "Twitter / X", "Google search", "Other"];
-
-function RadioGroup({ name, label, options, divider, optionLines, required }) {
+function RadioGroup({
+  name,
+  label,
+  options,
+  divider,
+  optionLines,
+  required,
+  value,
+  onChange,
+  invalid,
+}) {
+  const labelId = `contact-${name}-label`;
   return (
     <div className={divider ? "contact-field contact-field--divider" : "contact-field"}>
-      <span className="contact-field-label">{label}</span>
+      <span className="contact-field-label" id={labelId}>
+        {label}
+      </span>
       <div
         className={
           optionLines
             ? "contact-field-options contact-field-options--lines"
             : "contact-field-options"
         }
+        role="radiogroup"
+        aria-labelledby={labelId}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? STATUS_ID : undefined}
       >
         {options.map((option, index) => (
           <label className="contact-radio-option" key={`${name}-${index}`}>
@@ -49,6 +61,8 @@ function RadioGroup({ name, label, options, divider, optionLines, required }) {
               type="radio"
               name={name}
               value={option}
+              checked={value === option}
+              onChange={onChange}
               required={required}
             />
             {option}
@@ -63,38 +77,101 @@ const STATUS = { IDLE: "idle", SUBMITTING: "submitting", SUCCESS: "success", ERR
 
 export default function Contact() {
   const pageRef = useRef(null);
+  const formRef = useRef(null);
+  // synchronous guard: state lands a render later, so two fast clicks (or
+  // Enter + click) could both get past a `status` check
+  const submittingRef = useRef(false);
+  const abortRef = useRef(null);
+
+  const [values, setValues] = useState(EMPTY_VALUES);
   const [status, setStatus] = useState(STATUS.IDLE);
   const [errorMessage, setErrorMessage] = useState("");
+  // validation feedback appears after a submit attempt, then follows the
+  // fields live so the message shrinks as each one is fixed
+  const [showErrors, setShowErrors] = useState(false);
+
+  const errors = showErrors ? validate(toPayload(values)) : {};
+  const validationMessage = describeErrors(errors);
+
+  // leaving the page mid-request: drop the result rather than updating an
+  // unmounted form
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  function handleChange(event) {
+    const { name, value } = event.target;
+    setValues((prev) => (prev[name] === value ? prev : { ...prev, [name]: value }));
+    // editing after a result starts over: clear the old outcome
+    if (status === STATUS.SUCCESS || status === STATUS.ERROR) {
+      setStatus(STATUS.IDLE);
+      setErrorMessage("");
+    }
+  }
+
+  function focusField(field) {
+    const control = formRef.current?.elements.namedItem(field);
+    // a radio group comes back as a RadioNodeList - focus its first option
+    const target = control && !control.tagName ? control[0] : control;
+    target?.focus();
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (submittingRef.current) return;
 
-    if (status === STATUS.SUBMITTING) return;
+    const payload = toPayload(values);
+    const found = validate(payload);
+    const firstInvalid = FIELD_ORDER.find((field) => found[field]);
+    if (firstInvalid) {
+      setShowErrors(true);
+      setErrorMessage("");
+      setStatus(STATUS.ERROR);
+      focusField(firstInvalid);
+      return;
+    }
 
-    setStatus(STATUS.SUBMITTING);
+    submittingRef.current = true;
+    setShowErrors(false);
     setErrorMessage("");
+    setStatus(STATUS.SUBMITTING);
 
-    const form = e.currentTarget;
-    const data = Object.fromEntries(new FormData(form).entries());
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, REQUEST_TIMEOUT_MS);
 
     try {
       const response = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
+        signal: controller.signal,
       });
-
       const result = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
-        throw new Error(result.error || "Something went wrong. Please try again.");
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || GENERIC_ERROR);
       }
 
+      // reset only once the message has actually been accepted
+      setValues(EMPTY_VALUES);
       setStatus(STATUS.SUCCESS);
-      form.reset();
     } catch (error) {
+      if (controller.signal.aborted && !timedOut) return; // unmounted
+      setErrorMessage(
+        timedOut
+          ? "The request timed out. Please try again."
+          : error.name === "TypeError"
+            ? "Couldn't reach the server. Check your connection and try again."
+            : error.message || GENERIC_ERROR
+      );
       setStatus(STATUS.ERROR);
-      setErrorMessage(error.message || "Something went wrong. Please try again.");
+    } finally {
+      clearTimeout(timeout);
+      submittingRef.current = false;
+      if (abortRef.current === controller) abortRef.current = null;
     }
   }
 
@@ -189,14 +266,19 @@ export default function Contact() {
             We respond within 24 hours
           </p>
 
-          <form className="contact-form" onSubmit={handleSubmit}>
+          {/* noValidate: validation runs in handleSubmit and is reported in
+              the form's own status line below, not in browser bubbles */}
+          <form className="contact-form" onSubmit={handleSubmit} ref={formRef} noValidate>
             <RadioGroup
-              name="building"
+              name="projectType"
               label="I'm building...*"
-              options={BUILDING_OPTIONS}
+              options={PROJECT_TYPE_OPTIONS}
               divider
               optionLines
               required
+              value={values.projectType}
+              onChange={handleChange}
+              invalid={!!errors.projectType}
             />
 
             <RadioGroup
@@ -206,53 +288,84 @@ export default function Contact() {
               divider
               optionLines
               required
+              value={values.budget}
+              onChange={handleChange}
+              invalid={!!errors.budget}
             />
 
             <div className="contact-field contact-field--divider">
-              <span className="contact-field-label">My name is...*</span>
+              <span className="contact-field-label" id="contact-name-label">
+                My name is...*
+              </span>
               <input
                 className="contact-input"
                 type="text"
                 name="name"
                 placeholder="Name"
+                autoComplete="name"
                 required
+                value={values.name}
+                onChange={handleChange}
+                aria-labelledby="contact-name-label"
+                aria-invalid={!!errors.name || undefined}
+                aria-describedby={errors.name ? STATUS_ID : undefined}
               />
             </div>
 
             <div className="contact-field contact-field--divider">
-              <span className="contact-field-label">Reach me at...*</span>
+              <span className="contact-field-label" id="contact-email-label">
+                Reach me at...*
+              </span>
               <input
                 className="contact-input"
                 type="email"
                 name="email"
                 placeholder="Example@email.com"
+                autoComplete="email"
                 required
+                value={values.email}
+                onChange={handleChange}
+                aria-labelledby="contact-email-label"
+                aria-invalid={!!errors.email || undefined}
+                aria-describedby={errors.email ? STATUS_ID : undefined}
               />
             </div>
 
             <div className="contact-field contact-field--divider">
-              <span className="contact-field-label">What I&apos;m picturing..*</span>
+              <span className="contact-field-label" id="contact-message-label">
+                What I&apos;m picturing..*
+              </span>
               <textarea
                 className="contact-input contact-textarea"
                 name="message"
                 placeholder="Tell us about the project. What are you building, what's the timeline, and what would success look like 6 months after launch?"
                 rows={3}
                 required
+                value={values.message}
+                onChange={handleChange}
+                aria-labelledby="contact-message-label"
+                aria-invalid={!!errors.message || undefined}
+                aria-describedby={errors.message ? STATUS_ID : undefined}
               />
             </div>
 
             <RadioGroup
-              name="source"
+              name="foundThrough"
               label="I found you through..."
-              options={SOURCE_OPTIONS}
+              options={FOUND_THROUGH_OPTIONS}
               divider
               optionLines
+              required
+              value={values.foundThrough}
+              onChange={handleChange}
+              invalid={!!errors.foundThrough}
             />
 
             <button
               className="site-footer-button contact-submit btn-glass"
               type="submit"
               disabled={status === STATUS.SUBMITTING}
+              aria-busy={status === STATUS.SUBMITTING || undefined}
             >
               <RollingText>
                 {status === STATUS.SUBMITTING ? "Sending..." : "Send it"}
@@ -271,9 +384,9 @@ export default function Contact() {
                 </p>
               )}
 
-              {status === STATUS.ERROR && (
-                <p className="contact-form-status contact-form-status--error">
-                  {errorMessage}
+              {(validationMessage || (status === STATUS.ERROR && errorMessage)) && (
+                <p className="contact-form-status contact-form-status--error" id={STATUS_ID}>
+                  {validationMessage || errorMessage}
                 </p>
               )}
             </div>
