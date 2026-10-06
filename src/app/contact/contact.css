@@ -20,6 +20,21 @@
   object-fit: cover;
 }
 
+/* the liquid copy of the image (ContactFluidImage.jsx), exactly over the
+   <img>; it fades in only once it is drawing, so until then - or without
+   WebGL, or with reduced motion - the plain image is what shows */
+.contact-fluid {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+.contact-fluid.is-ready {
+  opacity: 1;
+}
+
 .contact-right {
   margin-left: 50%;
   min-height: 100vh;
@@ -259,7 +274,9 @@
 
 @media (max-width: 1000px) {
   .contact-left {
-    position: static;
+    /* relative rather than static: same layout, but it still anchors the
+       absolutely-positioned .contact-fluid canvas */
+    position: relative;
     width: 100%;
     height: 45svh;
   }

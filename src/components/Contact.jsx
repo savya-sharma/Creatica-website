@@ -8,6 +8,7 @@ import { SplitText } from "gsap/SplitText";
 import FooterInfoGrid from "./FooterInfoGrid";
 import RollingText from "./RollingText";
 import CornerDownRightIcon from "./icons/CornerDownRightIcon";
+import ContactFluidImage from "./ContactFluidImage";
 import {
   PROJECT_TYPE_OPTIONS,
   BUDGET_OPTIONS,
@@ -245,6 +246,7 @@ export default function Contact() {
     <div className="contact-page" ref={pageRef}>
       <div className="contact-left">
         <img src="/images/CTA-IMG.webp" alt="Creatica Crown" />
+        <ContactFluidImage src="/images/CTA-IMG.webp" />
       </div>
 
       <div className="contact-right">

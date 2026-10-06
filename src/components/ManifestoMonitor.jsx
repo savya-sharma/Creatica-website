@@ -665,31 +665,36 @@ export default function ManifestoMonitor() {
   // the list is a sibling of the canvas container, not nested inside it,
   // so container.clientWidth/clientHeight (what the resize() above measures
   // for the camera/renderer) always reflects only the 3D viewport itself -
-  // never inflated by the list's own height. On desktop this renders
-  // identically to before (the list is absolutely positioned back over the
-  // monitor via CSS); on mobile it lets the list flow in normal document
+  // never inflated by the list's own height. On desktop the statement and
+  // list sit together over the bottom of the monitor (.manifesto-brands is
+  // absolutely positioned via CSS); on mobile they flow in normal document
   // flow directly beneath the monitor instead.
   return (
     <>
       <div className="manifesto-monitor" ref={containerRef} />
-      <ul className="manifesto-projects" ref={listRef}>
-        {MONITOR_PROJECTS.map((project) => (
-          <li
-            key={project.name}
-            className="btn-glass"
-            data-img={project.image}
-            // focusable so keyboard users reach the same "preview this
-            // brand on the monitor" feedback a mouse hover gives (see the
-            // focus/focusout wiring above) - no role="button": there's no
-            // separate activation step to announce, focusing IS the whole
-            // interaction, exactly like hovering is for a mouse
-            tabIndex={0}
-            aria-label={`Preview ${project.name} on the monitor`}
-          >
-            <RollingText>{project.name}</RollingText>
-          </li>
-        ))}
-      </ul>
+      <div className="manifesto-brands">
+        <h2 className="manifesto-statement">
+          Brands we’ve helped <em>move forward.</em>
+        </h2>
+        <ul className="manifesto-projects" ref={listRef}>
+          {MONITOR_PROJECTS.map((project) => (
+            <li
+              key={project.name}
+              className="btn-glass"
+              data-img={project.image}
+              // focusable so keyboard users reach the same "preview this
+              // brand on the monitor" feedback a mouse hover gives (see the
+              // focus/focusout wiring above) - no role="button": there's no
+              // separate activation step to announce, focusing IS the whole
+              // interaction, exactly like hovering is for a mouse
+              tabIndex={0}
+              aria-label={`Preview ${project.name} on the monitor`}
+            >
+              <RollingText>{project.name}</RollingText>
+            </li>
+          ))}
+        </ul>
+      </div>
     </>
   );
 }
