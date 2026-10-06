@@ -104,11 +104,16 @@ export default function ManifestoMonitor() {
       monitorGroup.add(model);
     });
 
-    // The brand images are large (most are 3353x3763 - 48 MB each once
-    // decoded). Loaded through an <img>, the decode and the flip-Y happen
-    // synchronously inside the GPU upload, on the main thread: preloading
-    // all of them at once used to freeze the page for seconds right as the
-    // preloader handed over to the Hero, stalling its fluid. createImageBitmap
+    // The brand images are display-sized copies (1426x1600, ~9 MB each once
+    // decoded - see scripts/optimize-brand-images.mjs). The 3353x3763
+    // originals were 48 MB each, ~1 GB for the set and twice that counting
+    // the bitmaps kept alongside the GPU textures: past iOS WebKit's per-tab
+    // memory limit, so the page was killed and reloaded right after the
+    // preloader, over and over.
+    // Loaded through an <img>, the decode and the flip-Y happen synchronously
+    // inside the GPU upload, on the main thread: preloading all of them at
+    // once used to freeze the page for seconds right as the preloader handed
+    // over to the Hero, stalling its fluid. createImageBitmap
     // decodes (and flips) off the main thread instead; the pixels reaching
     // the GPU are identical - an sRGB texture is uploaded with no colour
     // conversion and no premultiply either way.
@@ -139,7 +144,8 @@ export default function ManifestoMonitor() {
 
       textureReady[src] = new Promise((resolve) => {
         const onImage = (image) => {
-          if (disposed) {
+          // disposed, or released by trimTextures() while still decoding
+          if (disposed || textureCache[src] !== texture) {
             image.close?.();
             resolve();
             return;
@@ -167,6 +173,28 @@ export default function ManifestoMonitor() {
       });
 
       return texture;
+    }
+
+    // Holding every brand decoded at once only pays off where a hover would
+    // otherwise wait on a decode. Touch devices have no hover (the phone
+    // layout auto-cycles, a tablet tap loads on demand), and are exactly the
+    // memory-constrained ones, so there only what is on screen, the default
+    // and the next image are kept - the rest are freed, GPU and bitmap both.
+    const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+    function releaseTexture(src) {
+      const texture = textureCache[src];
+      if (!texture) return;
+      delete textureCache[src];
+      delete textureReady[src];
+      texture.dispose();
+      texture.image?.close?.();
+    }
+
+    function trimTextures(keep) {
+      Object.keys(textureCache).forEach((src) => {
+        if (!keep.includes(src)) releaseTexture(src);
+      });
     }
 
     const defaultTexture = loadTexture(DEFAULT_DISPLAY_IMAGE);
@@ -197,9 +225,11 @@ export default function ManifestoMonitor() {
         });
       }
     }
-    const cancelTexturePreload = onPreloaderDone(() => {
-      if (!disposed) preloadTextures();
-    });
+    const cancelTexturePreload = canHover
+      ? onPreloaderDone(() => {
+          if (!disposed) preloadTextures();
+        })
+      : () => {};
 
     const displayMaterial = new THREE.ShaderMaterial({
       uniforms: {
@@ -378,7 +408,8 @@ export default function ManifestoMonitor() {
     const glitchState = { intensity: 0 };
     let currentSrc = DEFAULT_DISPLAY_IMAGE;
 
-    function setDisplayImage(src) {
+    // `nextSrc` is decoded ahead of time, so the following switch is instant
+    function setDisplayImage(src, nextSrc) {
       // one pill can report the same intent twice in a row (a click fires
       // mouseenter, then focus, then click) - only a real change of image
       // gets the glitch transition, never a restart of the one in flight
@@ -386,6 +417,8 @@ export default function ManifestoMonitor() {
       currentSrc = src;
       const texture = loadTexture(src);
       displayMaterial.uniforms.map.value = texture;
+      if (nextSrc) loadTexture(nextSrc);
+      if (!canHover) trimTextures([DEFAULT_DISPLAY_IMAGE, src, nextSrc]);
 
       if (glitchAnimation) glitchAnimation.kill();
       glitchState.intensity = 1.0;
@@ -417,11 +450,14 @@ export default function ManifestoMonitor() {
     let autoCycleTimer = null;
     let autoCycleIndex = 0;
 
+    const cycleImage = (index) => MONITOR_PROJECTS[index % MONITOR_PROJECTS.length].image;
+
     function startAutoCycle() {
       if (autoCycleTimer !== null) return;
+      loadTexture(cycleImage(autoCycleIndex + 1));
       autoCycleTimer = setInterval(() => {
         autoCycleIndex = (autoCycleIndex + 1) % MONITOR_PROJECTS.length;
-        setDisplayImage(MONITOR_PROJECTS[autoCycleIndex].image);
+        setDisplayImage(cycleImage(autoCycleIndex), cycleImage(autoCycleIndex + 1));
       }, AUTO_CYCLE_INTERVAL);
     }
 
