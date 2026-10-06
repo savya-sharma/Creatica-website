@@ -102,6 +102,8 @@ export default function ManifestoMonitor() {
         .getCenter(new THREE.Vector3());
       model.position.sub(center);
       monitorGroup.add(model);
+      measureMonitor();
+      resize();
     });
 
     // The brand images are display-sized copies (1426x1600, ~9 MB each once
@@ -268,10 +270,72 @@ export default function ManifestoMonitor() {
     const DESKTOP_BREAKPOINT = 1000; // matches the sitewide tablet breakpoint - desktop above this is untouched
     // matches the CSS breakpoint (see .manifesto-monitor's max-width:640px
     // rule) where the 3D viewport switches from filling the whole section
-    // to a small, fixed-aspect contained box - only THAT box is small
-    // enough on an actual phone screen to need extra magnification below
+    // to a small, fixed-aspect contained box
     const MOBILE_BREAKPOINT_WIDTH = 640;
-    const SMALL_SCREEN_ZOOM = 0.2; // extra camera-distance multiplier on the compact mobile box only - smaller = closer camera = larger monitor
+    const mobileQuery = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_WIDTH}px)`);
+    // only until monitor.glb has loaded - see frameMonitor() below
+    const SMALL_SCREEN_ZOOM = 0.2;
+
+    // The phone box is framed from the monitor's measured bounds instead of
+    // a distance tuned by hand: the old height-based z * SMALL_SCREEN_ZOOM
+    // put the camera *closer* the wider the phone (its box is shorter
+    // relative to 768), and aimed at the origin while the monitor sits
+    // 0.09 above it - so the top of the bezel ran past the canvas on every
+    // phone, worst on the widest ones. The view direction is the composed
+    // one (desktop's camera at (0, 0.15, 1)), so the perspective and pitch
+    // are unchanged; the camera aims at the monitor's own centre and backs
+    // off just far enough that every corner of its bounding box lands within
+    // FIT_MARGIN of the canvas edges. The box is 4:3 from the width alone,
+    // so Safari's address bar never changes it.
+    const VIEW_DIRECTION = new THREE.Vector3(0, 0.15, 1).normalize();
+    const FIT_MARGIN = 0.88;
+    const fitCenter = new THREE.Vector3();
+    const fitCorners = Array.from({ length: 8 }, () => new THREE.Vector3());
+    const projected = new THREE.Vector3();
+    let monitorMeasured = false;
+
+    // measured at rest: the pointer tilt is not part of the framing
+    function measureMonitor() {
+      const { x, y } = monitorGroup.rotation;
+      monitorGroup.rotation.set(0, 0, 0);
+      monitorGroup.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(monitorGroup);
+      monitorGroup.rotation.set(x, y, 0);
+      box.getCenter(fitCenter);
+      fitCorners.forEach((corner, i) =>
+        corner.set(
+          i & 1 ? box.max.x : box.min.x,
+          i & 2 ? box.max.y : box.min.y,
+          i & 4 ? box.max.z : box.min.z
+        )
+      );
+      monitorMeasured = true;
+    }
+
+    function placeCamera(distance) {
+      camera.position.copy(fitCenter).addScaledVector(VIEW_DIRECTION, distance);
+      camera.lookAt(fitCenter);
+      camera.updateMatrixWorld();
+      return fitCorners.every((corner) => {
+        projected.copy(corner).applyMatrix4(camera.matrixWorldInverse);
+        if (projected.z > -camera.near) return false;
+        projected.applyMatrix4(camera.projectionMatrix);
+        return Math.abs(projected.x) <= FIT_MARGIN && Math.abs(projected.y) <= FIT_MARGIN;
+      });
+    }
+
+    // whether the box fits only ever improves with distance: bisect for the
+    // closest distance that fits, then settle there
+    function frameMonitor() {
+      let near = 0;
+      let far = 10;
+      for (let i = 0; i < 30; i++) {
+        const mid = (near + far) / 2;
+        if (placeCamera(mid)) far = mid;
+        else near = mid;
+      }
+      placeCamera(far);
+    }
 
     function resize() {
       const { clientWidth: w, clientHeight: h } = container;
@@ -279,6 +343,14 @@ export default function ManifestoMonitor() {
 
       const aspect = w / h;
       camera.aspect = aspect;
+      camera.updateProjectionMatrix();
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(w, h);
+
+      if (mobileQuery.matches && monitorMeasured) {
+        frameMonitor();
+        return;
+      }
 
       let z = Math.max(1, 768 / h);
 
@@ -304,22 +376,19 @@ export default function ManifestoMonitor() {
         // correctly - applying this same push-in there was over-zooming
         // the camera almost inside the screen, cropping the monitor on
         // every side
-        if (w <= MOBILE_BREAKPOINT_WIDTH) {
+        if (mobileQuery.matches) {
           z *= SMALL_SCREEN_ZOOM;
         }
       }
 
-      camera.position.z = z;
+      // x/y reset too: rotating a phone out of the fitted layout lands here
+      camera.position.set(0, 0.15, z);
       // moving along z without re-aiming shifts the look angle (the camera
       // sits off-axis at y=0.15, so its pitch to the origin depends on z) -
       // this ResizeObserver-driven resize() can fire from layout shifts as
       // small as a hover state changing the list's size, so it has to
       // re-lookAt every time or the monitor drifts off-target
       camera.lookAt(0, 0, 0);
-
-      camera.updateProjectionMatrix();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.setSize(w, h);
     }
 
     resize();
@@ -442,9 +511,8 @@ export default function ManifestoMonitor() {
     // on mobile there's no hoverable button list, so the monitor cycles
     // through every brand on its own instead, reusing the exact same
     // glitch transition that hovering a button triggers on desktop/tablet
-    const MOBILE_BREAKPOINT = `(max-width: ${MOBILE_BREAKPOINT_WIDTH}px)`; // same breakpoint used by resize() above
+    // (mobileQuery is the same breakpoint resize() frames against)
     const AUTO_CYCLE_INTERVAL = 2800; // ms each brand stays on screen
-    const mobileQuery = window.matchMedia(MOBILE_BREAKPOINT);
     let isMobile = mobileQuery.matches;
     let isIntersecting = false;
     let autoCycleTimer = null;

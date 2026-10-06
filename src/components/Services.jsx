@@ -9,9 +9,13 @@ import { onLenisReady } from "@/lib/lenis";
 
 gsap.registerPlugin(InertiaPlugin, ScrollTrigger, SplitText);
 
+// `tier` sets each entry's weight in the index: "featured" (Web Development,
+// the studio's strongest capability) leads, "primary" carries the main group,
+// "secondary" sits as a compact pair beneath them
 const SERVICES = [
   {
     title: "Digital Marketing",
+    tier: "primary",
     statement:
       "Strategic campaigns designed to build awareness, reach the right audience, and drive growth.",
     capabilities: [
@@ -26,6 +30,7 @@ const SERVICES = [
   },
   {
     title: "Web Development",
+    tier: "featured",
     statement: "Creative digital experiences built from concept to launch.",
     capabilities: [
       "Creative Direction & Visual Concept",
@@ -41,6 +46,7 @@ const SERVICES = [
   },
   {
     title: "Video Creation",
+    tier: "primary",
     statement:
       "Visual storytelling created to communicate your brand with impact.",
     capabilities: [
@@ -55,6 +61,7 @@ const SERVICES = [
   },
   {
     title: "Logo Design",
+    tier: "secondary",
     statement: "Distinctive identities designed around your brand's character.",
     capabilities: [
       "Brand & Business Research",
@@ -68,6 +75,7 @@ const SERVICES = [
   },
   {
     title: "Label Design",
+    tier: "secondary",
     statement: "Packaging visuals designed to make your product stand out.",
     capabilities: [
       "Product & Market Research",
@@ -91,14 +99,20 @@ const VELOCITY_SCALE = 14; // lenis's per-frame scroll delta -> track px/sec
 const MAX_VELOCITY = 900; // px/sec clamp fed into InertiaPlugin
 const INERTIA_RESISTANCE = 300; // higher = decelerates and settles sooner
 
+const REVEAL_START = "top 80%";
+
 export default function Services() {
   const sectionRef = useRef(null);
+  const indexRef = useRef(null);
+  const markerRef = useRef(null);
   const viewportRef = useRef(null);
   const trackRef = useRef(null);
 
-  // premium bottom-to-top masked line reveal for the section's own text
-  // (title, card headings, card list items) - fully separate from the
-  // marquee effect below so neither can interfere with the other
+  // Each block (the intro, then every service) reveals as it reaches the
+  // viewport rather than all five at once when the section's top does: its
+  // display type ([data-split]) rises line by line out of a mask, its
+  // quieter metadata ([data-fade]) follows, and its hairline draws in from
+  // the left.
   useEffect(() => {
     const container = sectionRef.current;
     if (!container) return;
@@ -107,49 +121,122 @@ export default function Services() {
       "(prefers-reduced-motion: reduce)"
     ).matches;
 
-    // guards against the scroll reveal re-hiding/replaying text that has
-    // already been shown once, if autoSplit re-splits later (resize, a web
-    // font finishing its load, etc.)
-    let hasPlayed = false;
+    const ctx = gsap.context(() => {
+      const blocks = gsap.utils.toArray(".services-intro, .service", container);
 
-    const split = SplitText.create(
-      Array.from(
-        container.querySelectorAll(
-          ".services-title, .service-card h3, .service-card-statement, .service-card li"
-        )
-      ),
-      {
-        type: "lines",
-        mask: "lines",
-        autoSplit: true,
-        onSplit(self) {
-          if (prefersReducedMotion || hasPlayed) {
-            gsap.set(self.lines, { yPercent: 0 });
-            return;
-          }
+      const splits = blocks.map((block) => {
+        // guards against the scroll reveal re-hiding/replaying text that has
+        // already been shown once, if autoSplit re-splits later (resize, a
+        // web font finishing its load, etc.)
+        let hasPlayed = false;
+        return SplitText.create(block.querySelectorAll("[data-split]"), {
+          type: "lines",
+          mask: "lines",
+          autoSplit: true,
+          onSplit(self) {
+            if (prefersReducedMotion || hasPlayed) {
+              gsap.set(self.lines, { yPercent: 0 });
+              return;
+            }
 
-          gsap.set(self.lines, { yPercent: 110 });
+            gsap.set(self.lines, { yPercent: 110 });
 
-          return gsap.to(self.lines, {
-            yPercent: 0,
-            duration: 0.6,
+            return gsap.to(self.lines, {
+              yPercent: 0,
+              duration: 0.8,
+              ease: "power3.out",
+              stagger: 0.06,
+              scrollTrigger: {
+                trigger: block,
+                start: REVEAL_START,
+                once: true,
+                onEnter: () => {
+                  hasPlayed = true;
+                },
+              },
+            });
+          },
+        });
+      });
+
+      if (!prefersReducedMotion) {
+        blocks.forEach((block) => {
+          const scrollTrigger = { trigger: block, start: REVEAL_START, once: true };
+          gsap.from(block.querySelectorAll("[data-fade]"), {
+            autoAlpha: 0,
+            y: 12,
+            duration: 0.8,
+            delay: 0.15,
             ease: "power3.out",
             stagger: 0.05,
-            scrollTrigger: {
-              trigger: container,
-              start: "top 75%",
-              once: true,
-              onEnter: () => {
-                hasPlayed = true;
-              },
-            },
+            scrollTrigger,
           });
-        },
+          const rule = block.querySelector(".service-rule");
+          if (rule) {
+            gsap.from(rule, {
+              scaleX: 0,
+              transformOrigin: "left center",
+              duration: 1.2,
+              ease: "power3.inOut",
+              scrollTrigger,
+            });
+          }
+        });
       }
-    );
+
+      return () => splits.forEach((split) => split.revert());
+    }, container);
+
+    return () => ctx.revert();
+  }, []);
+
+  // The section's one motif: a hairline rail down the index whose darker
+  // segment glides to whichever service the pointer is on, and rests on Web
+  // Development otherwise. Hover-capable pointers only - the CSS hides the
+  // rail on touch, where there is nothing for it to follow.
+  useEffect(() => {
+    const index = indexRef.current;
+    const marker = markerRef.current;
+    if (!index || !marker) return;
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+
+    const rows = Array.from(index.querySelectorAll(".service"));
+    const home = index.querySelector(".service--featured") ?? rows[0];
+    let current = home;
+
+    // spans the row's label + title, measured against the index itself so
+    // the result doesn't depend on scroll position
+    const place = (row, immediate = false) => {
+      current = row;
+      const head = row.querySelector(".service-head");
+      const indexTop = index.getBoundingClientRect().top;
+      const headRect = head.getBoundingClientRect();
+      gsap.to(marker, {
+        y: headRect.top - indexTop,
+        height: headRect.height,
+        duration: immediate ? 0 : 0.7,
+        ease: "power3.inOut",
+        overwrite: true,
+      });
+    };
+
+    const handlers = rows.map((row) => {
+      const onEnter = () => place(row);
+      row.addEventListener("pointerenter", onEnter);
+      return [row, onEnter];
+    });
+    const onLeave = () => place(home);
+    index.addEventListener("pointerleave", onLeave);
+
+    // type reflowing (resize, fonts, the line split) moves the rows under it
+    const observer = new ResizeObserver(() => place(current, true));
+    observer.observe(index);
 
     return () => {
-      split.revert();
+      handlers.forEach(([row, onEnter]) => row.removeEventListener("pointerenter", onEnter));
+      index.removeEventListener("pointerleave", onLeave);
+      observer.disconnect();
+      gsap.killTweensOf(marker);
     };
   }, []);
 
@@ -255,45 +342,66 @@ export default function Services() {
 
   return (
     <div className="services" ref={sectionRef}>
-      <h2 className="services-title">Services</h2>
+      <header className="services-intro">
+        <p className="services-eyebrow" data-fade>
+          <span>Services</span>
+          <span className="services-eyebrow-slash" aria-hidden="true">/</span>
+          <span>Capabilities</span>
+        </p>
+        <h2 className="services-statement" data-split>
+          Where strategy, design and technology <em>meet.</em>
+        </h2>
+      </header>
 
-      <div className="services-grid">
-        {SERVICES.map((service, index) => (
-          <article
-            className={
-              service.featured ? "service-card service-card--featured" : "service-card"
-            }
-            key={service.title}
-          >
-            <div className="service-card-heading">
-              <span className="service-card-index">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <h3>{service.title}</h3>
-            </div>
+      <div className="services-index" ref={indexRef}>
+        <span className="services-rail" aria-hidden="true">
+          <span className="services-rail-marker" ref={markerRef} />
+        </span>
 
-            <p className="service-card-statement">{service.statement}</p>
+        {SERVICES.map((service, index) => {
+          const number = String(index + 1).padStart(2, "0");
+          const titleId = `service-${number}`;
+          return (
+            <article
+              className={`service service--${service.tier}`}
+              key={service.title}
+              aria-labelledby={titleId}
+            >
+              <span className="service-rule" aria-hidden="true" />
 
-            <ul className="service-card-capabilities">
-              {service.capabilities.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
+              <div className="service-head">
+                <span className="service-number" data-fade>
+                  {number}
+                </span>
+                <h3 className="service-title" id={titleId} data-split>
+                  {service.title}
+                </h3>
+              </div>
 
-            {service.process && (
-              <ol className="service-card-process">
-                {service.process.map((step) => (
-                  <li key={step}>{step}</li>
-                ))}
-              </ol>
-            )}
+              <div className="service-body">
+                <p className="service-statement" data-split>
+                  {service.statement}
+                </p>
 
-            <div className="service-card-delivery">
-              <span>Delivery</span>
-              <span>{service.delivery}</span>
-            </div>
-          </article>
-        ))}
+                <div className="service-capabilities" data-fade>
+                  <p className="service-label" id={`${titleId}-capabilities`}>
+                    Capabilities
+                  </p>
+                  <ul aria-labelledby={`${titleId}-capabilities`}>
+                    {service.capabilities.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <dl className="service-delivery" data-fade>
+                  <dt className="service-label">Delivery</dt>
+                  <dd>{service.delivery}</dd>
+                </dl>
+              </div>
+            </article>
+          );
+        })}
       </div>
 
       {/* <div className="marquee" ref={viewportRef}>
