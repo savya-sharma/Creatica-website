@@ -1,0 +1,216 @@
+/* Self-contained styles for the People section; all selectors are scoped. */
+
+.people-section {
+  --people-bg: var(--color-text, #072f33);
+  --people-fg: var(--color-surface, #cecfc9);
+  position: relative;
+  /* Full-bleed within its parent; never wider than it, so no x-overflow. */
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--people-bg);
+  color: var(--people-fg);
+  padding-top: clamp(4rem, 8vw, 7rem);
+}
+
+.people-section__intro {
+  position: relative;
+  z-index: 1;
+  padding: 0 4rem 0 20%;
+  pointer-events: none;
+}
+
+.people-section__eyebrow {
+  margin: 0 0 1rem;
+  font-family: "IBM", "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.people-section__title {
+  max-width: 48rem;
+  margin: 0;
+  font-family: "AppleRegular", sans-serif;
+  font-weight: 500;
+  font-size: clamp(1.75rem, 1.3rem + 2.2vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.people-carousel {
+  position: relative;
+  /* Slight overlap so the canvas sits around the heading, not below a gap. */
+  margin-top: 1.5rem;
+  /* Wide cinematic strip, like the reference (~3.3:1 on desktop). */
+  height: clamp(360px, 33vw, 76svh);
+  /* Vertical swipes scroll the page; horizontal ones drive the carousel. */
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
+.people-carousel:focus-visible {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--people-fg) 40%, transparent);
+}
+
+.people-carousel__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.people-section__live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Geometry inspector (debug: true only) */
+.people-debug {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font: 10px/1.35 ui-monospace, monospace;
+  color: #3fe0ff;
+}
+
+.people-debug__label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 2px 4px;
+  white-space: pre;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.people-debug__legend {
+  position: absolute;
+  right: 4%;
+  bottom: 12px;
+  padding: 4px 6px;
+  white-space: pre;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.people-section.is-webgl-unavailable .people-carousel {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .people-carousel {
+    height: clamp(340px, 46vw, 72svh);
+  }
+}
+
+@media (max-width: 1000px) {
+  .people-section__intro {
+    padding: 0 2rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .people-section__intro {
+    padding: 0 1.25rem;
+  }
+
+  .people-carousel {
+    margin-top: 0;
+    height: clamp(320px, 92vw, 520px);
+  }
+}
+
+/* About background smoke (backgroundFluid.js). The page becomes a stacking
+   context so the fixed canvas at z-index -1 sits above the page background
+   but below all of its content. */
+.has-fluid-background {
+  position: relative;
+  isolation: isolate;
+}
+
+.about-fluid-background {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* let the smoke show through the People section (its canvas has alpha) */
+.has-fluid-background .people-section {
+  background-color: transparent;
+}
+
+/* "DRAG" cursor over the carousel (dragCursor.js) */
+.people-carousel.has-drag-cursor,
+.people-carousel.has-drag-cursor.is-dragging {
+  cursor: none;
+}
+
+.drag-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.drag-cursor__disc {
+  --size: 52px;
+  position: absolute;
+  left: calc(var(--size) / -2);
+  top: calc(var(--size) / -2);
+  width: var(--size);
+  height: var(--size);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, rgba(16, 52, 56, 0.55), rgba(4, 22, 24, 0.72) 70%);
+  box-shadow:
+    inset 0 0 0 1px rgba(206, 207, 201, 0.28),
+    0 0 0 1px rgba(0, 0, 0, 0.18),
+    0 8px 24px rgba(0, 0, 0, 0.28);
+  -webkit-backdrop-filter: blur(6px) saturate(130%);
+  backdrop-filter: blur(6px) saturate(130%);
+  opacity: 0;
+  transform: scale(0.3);
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.25s ease;
+}
+
+.drag-cursor.is-visible .drag-cursor__disc {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.drag-cursor__label {
+  font-family: "AppleRegular", sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f1ece9;
+  /* faint chromatic fringe, as in the reference */
+  text-shadow:
+    -1px 0 rgba(255, 92, 170, 0.75),
+    1px 0 rgba(90, 220, 255, 0.6);
+}
+
+/* HTML text drawn by the fluid background (fluidText.js): the real text stays
+   in the page for selection and assistive tech, but is invisible. */
+.fluid-text-source {
+  color: transparent !important;
+  text-shadow: none !important;
+}

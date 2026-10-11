@@ -45,6 +45,21 @@ const SERVICES = [
     delivery: "3–4 Weeks",
   },
   {
+    title: "3D Modelling & VFX",
+    tier: "primary",
+    statement:
+      "Immersive 3D visuals that bring products and ambitious concepts to life.",
+    capabilities: [
+      "Concept & Creative Direction",
+      "3D Product Modelling",
+      "Texturing, Materials & Lighting",
+      "Photorealistic Rendering",
+      "3D Animation & Product Showcases",
+      "Motion Graphics & VFX",
+    ],
+    delivery: "10–15 Days",
+  },
+  {
     title: "Video Creation",
     tier: "primary",
     statement:

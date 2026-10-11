@@ -264,6 +264,268 @@ const TEXTS = [
   { selector: ".hero-heading", font: "/fonts/AppleRegular.ttf" },
 ];
 
+// top/left of `el` inside `ancestor`, in layout px (CSS transforms ignored)
+function offsetWithin(el, ancestor) {
+  let x = 0;
+  let y = 0;
+  for (let node = el; node && node !== ancestor; node = node.offsetParent) {
+    x += node.offsetLeft;
+    y += node.offsetTop;
+  }
+  return { x, y };
+}
+
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+// mix a CSS colour with white, like color-mix(in srgb, c p%, #fff)
+function mixWithWhite(css, p) {
+  const c = new THREE.Color(css);
+  const ch = (v) => Math.round((v * p + (1 - p)) * 255);
+  c.convertLinearToSRGB();
+  return `rgb(${ch(c.r)}, ${ch(c.g)}, ${ch(c.b)})`;
+}
+
+const NOTE_MARGIN = 28; // px of room around the paper for its shadow
+
+// Draws one sticky note (paper, grain, fold, shadows, text) into a canvas,
+// from the DOM note's own computed styles and word positions, so the
+// fluid-warped copy matches what the page shows.
+async function drawNote(note, dpr) {
+  const card = note.querySelector(".hero-note-card");
+  const paper = note.querySelector(".hero-note-paper");
+  const textEl = note.querySelector(".hero-note-text");
+  const w = card.offsetWidth;
+  const h = card.offsetHeight;
+  const cs = getComputedStyle(note);
+  const fold = parseFloat(cs.getPropertyValue("--fold")) * parseFloat(getComputedStyle(document.documentElement).fontSize) || 24;
+  const paperColor = cs.getPropertyValue("--paper").trim();
+  const foldLeft = note.classList.contains("hero-note--ivory");
+
+  // word boxes relative to the card, measured with the card's tilt removed
+  // (the note's float translation cancels out); restored before any paint
+  const prevTransform = card.style.transform;
+  card.style.transform = "none";
+  const cardRect = card.getBoundingClientRect();
+  const ts = getComputedStyle(textEl);
+  const words = [];
+  const range = document.createRange();
+  const walker = document.createTreeWalker(textEl, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    for (const match of node.textContent.matchAll(/\S+/g)) {
+      range.setStart(node, match.index);
+      range.setEnd(node, match.index + match[0].length);
+      const r = range.getBoundingClientRect();
+      if (r.width) words.push({ text: match[0], x: r.left - cardRect.left, y: r.top - cardRect.top });
+    }
+  }
+  card.style.transform = prevTransform;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round((w + NOTE_MARGIN * 2) * dpr);
+  canvas.height = Math.round((h + NOTE_MARGIN * 2) * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.translate(NOTE_MARGIN, NOTE_MARGIN);
+
+  const outline = new Path2D();
+  if (foldLeft) {
+    outline.moveTo(fold, 0);
+    outline.lineTo(w, 0);
+    outline.lineTo(w, h);
+    outline.lineTo(0, h);
+    outline.lineTo(0, fold);
+  } else {
+    outline.moveTo(0, 0);
+    outline.lineTo(w - fold, 0);
+    outline.lineTo(w, fold);
+    outline.lineTo(w, h);
+    outline.lineTo(0, h);
+  }
+  outline.closePath();
+
+  // paper + its two soft shadows (same values as the CSS drop-shadows)
+  ctx.fillStyle = paperColor;
+  for (const [y, blur, alpha] of [[9, 14, 0.13], [1, 1, 0.1]]) {
+    ctx.save();
+    ctx.shadowColor = `rgba(7, 47, 51, ${alpha})`;
+    ctx.shadowOffsetY = y;
+    ctx.shadowBlur = blur;
+    ctx.fill(outline);
+    ctx.restore();
+  }
+
+  // the same fibre grain image the CSS paints
+  const grainUrl = getComputedStyle(paper).backgroundImage.match(/url\("?(.*?)"?\)$/)?.[1];
+  const grain = grainUrl ? await loadImage(grainUrl) : null;
+  if (grain) {
+    ctx.save();
+    ctx.clip(outline);
+    ctx.fillStyle = ctx.createPattern(grain, "repeat");
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+
+  // folded flap: lighter underside, crease highlight, small fold shadow
+  const flap = new Path2D();
+  const crease = new Path2D();
+  const s = 0.07 * fold;
+  if (foldLeft) {
+    flap.moveTo(fold, 0);
+    flap.lineTo(fold, fold);
+    flap.lineTo(0, fold);
+    crease.moveTo(fold, 0);
+    crease.lineTo(0, fold);
+    crease.lineTo(s, fold);
+    crease.lineTo(fold, s);
+  } else {
+    flap.moveTo(w - fold, 0);
+    flap.lineTo(w, fold);
+    flap.lineTo(w - fold, fold);
+    crease.moveTo(w - fold, 0);
+    crease.lineTo(w, fold);
+    crease.lineTo(w - s, fold);
+    crease.lineTo(w - fold, s);
+  }
+  flap.closePath();
+  crease.closePath();
+  ctx.save();
+  ctx.shadowColor = "rgba(7, 47, 51, 0.2)";
+  ctx.shadowOffsetX = foldLeft ? 1 : -1;
+  ctx.shadowOffsetY = 1.5;
+  ctx.shadowBlur = 1.5;
+  ctx.fillStyle = mixWithWhite(paperColor, 0.78);
+  ctx.fill(flap);
+  ctx.restore();
+  ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+  ctx.fill(crease);
+
+  // words at their exact on-page spots
+  await document.fonts.load(`${ts.fontStyle} ${ts.fontWeight} ${ts.fontSize} ${ts.fontFamily}`);
+  ctx.font = `${ts.fontStyle} ${ts.fontWeight} ${ts.fontSize} ${ts.fontFamily}`;
+  ctx.fillStyle = ts.color;
+  ctx.textBaseline = "alphabetic";
+  for (const word of words) {
+    const m = ctx.measureText(word.text);
+    const ascent = m.fontBoundingBoxAscent ?? parseFloat(ts.fontSize) * 0.8;
+    ctx.fillText(word.text, word.x, word.y + ascent);
+  }
+  return { canvas, width: w + NOTE_MARGIN * 2, height: h + NOTE_MARGIN * 2 };
+}
+
+// The sticky notes, warped by the same fluid as the headline. The DOM notes
+// float on a CSS animation while this canvas sleeps between strokes, so the
+// copies are only drawn while the fluid is active: each frame they follow
+// their note's current float and tilt, and the DOM notes stop painting. When
+// the fluid settles (its displacement has decayed by then) the copies hide
+// and the DOM notes paint again.
+function HeroNotes({ root, textUniforms, pointer }) {
+  const gl = useThree((s) => s.gl);
+  const camera = useThree((s) => s.camera);
+  const scene = useThree((s) => s.scene);
+  // one mutable holder (like Scene's pointer ref): the effect fills it, the
+  // frame loop reads it
+  const store = useRef(null);
+  if (store.current === null) store.current = { items: [], frame: null };
+
+  useEffect(() => {
+    const items = [...root.querySelectorAll(".hero-note")].map((note) => {
+      const material = makeTextMaterial(textUniforms);
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1, 24, 16), material);
+      mesh.renderOrder = -1; // under the hero's ink, like the DOM notes
+      mesh.frustumCulled = false;
+      mesh.visible = false;
+      scene.add(mesh);
+      return { note, card: note.querySelector(".hero-note-card"), mesh, material, texture: null, ready: false, tilt: 0, matrix: new DOMMatrix() };
+    });
+    store.current.items = items;
+    // the same window Scene keeps the canvas awake for
+    let shown = false;
+    store.current.frame = (frame) => {
+      if (!items.length) return;
+      const p = pointer.current;
+      const active = p.visible && performance.now() < p.activeUntil && items.every((i) => i.ready);
+      if (active !== shown) {
+        shown = active;
+        for (const item of items) {
+          item.mesh.visible = active;
+          item.note.classList.toggle("hero-note--fluid", active);
+        }
+      }
+      if (!active) return;
+      const { width, height } = frame.size;
+      for (const item of items) {
+        // layout centre + the note's current float translation, then the tilt
+        const m = item.matrix.setMatrixValue(getComputedStyle(item.note).transform || "none");
+        const box = offsetWithin(item.note, root);
+        const cx = box.x + item.note.offsetWidth / 2 + m.e;
+        const cy = box.y + item.note.offsetHeight / 2 + m.f;
+        item.mesh.position.set(cx - width / 2, height / 2 - cy, 0);
+        item.mesh.rotation.z = -item.tilt;
+      }
+    };
+    let disposed = false;
+    let version = 0;
+
+    async function build() {
+      const v = ++version;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      for (const item of items) {
+        if (!item.note.offsetWidth || getComputedStyle(item.note).display === "none") continue;
+        const drawn = await drawNote(item.note, dpr);
+        if (disposed || v !== version) return;
+        const texture = new THREE.CanvasTexture(drawn.canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        item.texture?.dispose();
+        item.texture = texture;
+        item.material.map = texture;
+        item.material.needsUpdate = true;
+        // geometry at real px size, not a scaled unit plane: the fluid
+        // displacement is added in local units, which must be px
+        item.mesh.geometry.dispose();
+        item.mesh.geometry = new THREE.PlaneGeometry(drawn.width, drawn.height, 24, 16);
+        const m = new DOMMatrix(getComputedStyle(item.card).transform);
+        item.tilt = Math.atan2(m.b, m.a);
+        if (!item.ready) {
+          await precompile(gl, item.mesh, camera, scene);
+          if (disposed) return;
+          item.ready = true;
+        }
+      }
+    }
+
+    const observer = new ResizeObserver(() => build());
+    items.forEach((item) => observer.observe(item.card));
+    document.fonts.ready.then(() => !disposed && build());
+
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      for (const item of items) {
+        item.note.classList.remove("hero-note--fluid");
+        scene.remove(item.mesh);
+        item.mesh.geometry.dispose();
+        item.material.dispose();
+        item.texture?.dispose();
+      }
+      store.current.items = [];
+      store.current.frame = null;
+    };
+  }, [root, scene, textUniforms, gl, camera, pointer]);
+
+  // the per-frame work lives in the effect (it owns the meshes); this only
+  // forwards R3F's frame to it
+  useFrame((frame) => store.current.frame?.(frame));
+
+  return null;
+}
+
 // tx/ty is the raw pointer, bx/by the brush; the brush is only ever seeded
 // from a real pointer sample (see useFrame), never from this origin
 function resetPointer(p) {
@@ -503,6 +765,7 @@ function Scene({ root, tablet }) {
           reveal={reveal}
         />
       ))}
+      <HeroNotes root={root} textUniforms={fluid.textUniforms} pointer={pointer} />
     </>
   );
 }

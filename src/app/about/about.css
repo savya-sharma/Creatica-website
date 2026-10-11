@@ -101,28 +101,33 @@
   opacity: 0.75;
 }
 
-.about-founder {
-  display: flex;
-  gap: 2.5rem;
-}
-
-.about-owner-pic {
-  flex: 0 0 auto;
-  width: 16rem;
-  height: 18rem;
+/* Employee image carousel (last About section), full-bleed: the page pads
+   20% (of the page width W) left and 4rem right, so the content box is
+   C = 0.8W - 4rem and percentages resolve against C:
+   -0.2W = -(C + 4rem) / 4 = -25% - 1rem. */
+.about-people {
+  position: relative;
+  margin: 0 -4rem 0 calc(-25% - 1rem);
   overflow: hidden;
-  background-color: var(--color-surface);
 }
 
-.about-owner-pic img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.about-people .people-carousel {
+  margin-top: 0;
+}
+
+.about-people.is-webgl-unavailable {
+  display: none;
+}
+
+/* Founder text under the carousel: its own section (so its line reveal
+   triggers when it scrolls in), but without the divider line */
+.about-section--founder {
+  padding-top: 0;
+  margin-top: 3rem;
+  border-top: none;
 }
 
 .about-founder-copy {
-  flex: 1;
-  max-width: 40rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -192,13 +197,9 @@
     max-width: none;
   }
 
-  .about-founder {
-    flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .about-founder-copy {
-    max-width: none;
+  /* side padding is 1.5rem on both sides at this breakpoint */
+  .about-people {
+    margin: 0 -1.5rem;
   }
 
   /* .about-page's own side padding shrinks to 1.5rem here, so the slider's
@@ -220,5 +221,11 @@
 
   .about-capability {
     padding: 1.25rem 0;
+  }
+
+  /* the carousel's own stage already leaves room below its captions */
+  .about-section--founder {
+    padding-top: 0;
+    margin-top: 0;
   }
 }

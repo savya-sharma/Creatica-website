@@ -762,6 +762,463 @@ section {
   color: transparent;
 }
 
+/* Paper notes, a close pair in the hero's open upper-right area. Three
+   layers so no transform is set twice: .hero-note floats (animation),
+   .hero-note-card tilts and casts the shadow, .hero-note-paper is the
+   clipped sheet with its cut-away corner, .hero-note-fold the folded flap.
+   Same z-index as .hero-fluid but earlier in the DOM, so the ink drifts
+   over the paper; under .hero-content (z-index 1). */
+.hero-note {
+  --fold: 1.6rem;
+  /* the pair is laid out from one anchor: the lavender note sits at the
+     right/top anchor (offset down), the ivory note one gap to its left */
+  --pair-right: clamp(2.5rem, 7vw, 10rem);
+  --pair-top: clamp(7rem, 20%, 12rem);
+  --pair-gap: 2.4rem;
+  --pair-drop: clamp(2.5rem, 4vw, 4rem);
+  --ivory-width: clamp(14.5rem, 10.5rem + 6.5vw, 19rem);
+  --lavender-width: clamp(14rem, 10.5rem + 6vw, 18.25rem);
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  animation: hero-note-float var(--float-duration) ease-in-out var(--float-delay) infinite alternate;
+  will-change: transform;
+}
+
+.hero-note--ivory {
+  --paper: #304d4f; /* even mix of #586a6b and #072f33 */
+  --tilt: -4deg;
+  --float-duration: 8s;
+  --float-delay: -2.5s;
+  top: var(--pair-top);
+  right: calc(var(--pair-right) + var(--lavender-width) + var(--pair-gap));
+  width: var(--ivory-width);
+}
+
+.hero-note--lavender {
+  --paper: #304d4f; /* even mix of #586a6b and #072f33 */
+  --tilt: 3deg;
+  --float-duration: 9.5s;
+  --float-delay: -6s;
+  top: calc(var(--pair-top) + var(--pair-drop));
+  right: var(--pair-right);
+  width: var(--lavender-width);
+}
+
+/* while the fluid is moving, HeroFluid draws a fluid-warped copy of each
+   note (HeroNotes in HeroFluid.jsx) and the DOM note stops painting */
+.hero-note--fluid .hero-note-card {
+  visibility: hidden;
+}
+
+.hero-note-card {
+  position: relative;
+  transform: rotate(var(--tilt));
+  /* soft natural shadow that follows the clipped paper outline */
+  filter: drop-shadow(0 1px 1px rgba(7, 47, 51, 0.1))
+    drop-shadow(0 9px 14px rgba(7, 47, 51, 0.13));
+}
+
+.hero-note-paper {
+  padding: 1.7rem 1.8rem 1.9rem;
+  /* solid matte paper with a fine fibre grain (no gradients) */
+  background-color: var(--paper);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.32  0 0 0 0 0.28  0 0 0 0.1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* clean straight edges, with only the fold corner cut away */
+.hero-note--ivory .hero-note-paper {
+  clip-path: polygon(var(--fold) 0, 100% 0, 100% 100%, 0 100%, 0 var(--fold));
+}
+
+.hero-note--lavender .hero-note-paper {
+  clip-path: polygon(0 0, calc(100% - var(--fold)) 0, 100% var(--fold), 100% 100%, 0 100%);
+}
+
+.hero-note-text {
+  margin: 0;
+  font-family: "Apply", serif;
+  font-style: italic;
+  font-size: clamp(1.3rem, 0.95rem + 0.85vw, 1.8rem);
+  line-height: 1.22;
+  color: var(--color-surface);
+}
+
+/* the folded flap lies over the cut corner; the wrapper casts its fold
+   shadow (a filter on the clipped triangle itself would be clipped away).
+   ::before is the paper's underside (a solid, slightly lighter shade),
+   ::after a thin solid highlight along the crease */
+.hero-note-fold {
+  position: absolute;
+  top: 0;
+  width: var(--fold);
+  height: var(--fold);
+}
+
+.hero-note-fold::before,
+.hero-note-fold::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.hero-note-fold::before {
+  background-color: color-mix(in srgb, var(--paper) 78%, #fff);
+}
+
+.hero-note-fold::after {
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
+.hero-note--ivory .hero-note-fold {
+  left: 0;
+  filter: drop-shadow(1px 1.5px 1.5px rgba(7, 47, 51, 0.2));
+}
+
+.hero-note--ivory .hero-note-fold::before {
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.hero-note--ivory .hero-note-fold::after {
+  clip-path: polygon(100% 0, 0 100%, 7% 100%, 100% 7%);
+}
+
+.hero-note--lavender .hero-note-fold {
+  right: 0;
+  filter: drop-shadow(-1px 1.5px 1.5px rgba(7, 47, 51, 0.2));
+}
+
+.hero-note--lavender .hero-note-fold::before {
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+}
+
+.hero-note--lavender .hero-note-fold::after {
+  clip-path: polygon(0 0, 100% 100%, 93% 100%, 0 7%);
+}
+
+/* Line doodles around the notes (Hero.jsx), positioned against their note
+   so they float with it and scale with its width. Hand-drawn strokes in
+   the site's dark teal; each path draws in once the hero is revealed
+   (.hero--doodles-in, after the preloader), then a small idle motion
+   per doodle takes over. */
+.hero-doodle {
+  position: absolute;
+  color: var(--color-text);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.hero-doodle svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* hidden strokes until the draw-in (pathLength="1" on every stroke) */
+.hero-doodle path,
+.hero-doodle circle {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.hero--doodles-in .hero-doodle path,
+.hero--doodles-in .hero-doodle circle {
+  animation: hero-doodle-draw 1.4s cubic-bezier(0.65, 0, 0.35, 1) var(--draw-delay, 0s) forwards;
+}
+
+.hero-doodle--bulb {
+  --draw-delay: 0.2s;
+  top: -4.4rem;
+  left: -1.4rem;
+  width: 3.6rem;
+}
+
+.hero-doodle--noise {
+  --draw-delay: 0.45s;
+  bottom: -3.3rem;
+  left: 0.6rem;
+  width: 7rem;
+}
+
+.hero-doodle--eye {
+  --draw-delay: 1s;
+  bottom: -3.4rem;
+  right: 0.6rem;
+  width: 4.4rem;
+}
+
+.hero-doodle--sparkle {
+  --draw-delay: 1.2s;
+  top: -2.3rem;
+  right: -1.5rem;
+  width: 1.35rem;
+}
+
+.hero-doodle--sparkle-sm {
+  --draw-delay: 1.35s;
+  top: -0.6rem;
+  right: -2.6rem;
+  width: 0.8rem;
+}
+
+/* "The Idea in Motion" (IdeaInMotion.jsx): flight path + paper plane from
+   the first note to the second, drawn by GSAP (not the CSS draw-in above).
+   Sits under the left half of the ivory note and spans the gap, so its
+   end lands at the lavender note's lower-left edge. */
+.hero-flight {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 50%;
+  width: calc(50% + var(--pair-gap) - 0.6rem);
+  color: var(--color-text);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.hero-flight-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hero-flight-svg--narrow {
+  display: none;
+}
+
+/* hidden until GSAP draws/flies them (pathLength="1") */
+.hero-flight-path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.hero-flight-plane {
+  visibility: hidden;
+}
+
+.hero-flight-soft {
+  opacity: 0.55;
+  stroke-width: 1.2;
+}
+
+/* idle motion, after the draw-in */
+.hero--doodles-in .hero-doodle-rays {
+  animation: hero-doodle-rays 3.2s ease-in-out 2s infinite;
+}
+
+.hero--doodles-in .hero-doodle .hero-doodle-wave {
+  animation:
+    hero-doodle-draw 1.4s cubic-bezier(0.65, 0, 0.35, 1) var(--draw-delay) forwards,
+    hero-doodle-jitter 0.9s steps(2, jump-none) 2.2s infinite;
+}
+
+.hero-doodle-wave {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Brand Observer eye (BrandObserver.jsx): secondary contours - crease,
+   tear duct, inner iris ring, catch-light - drawn fainter and finer */
+.brand-eye-soft {
+  opacity: 0.5;
+  stroke-width: 1.2;
+}
+
+.hero--doodles-in .hero-doodle--sparkle svg,
+.hero--doodles-in .hero-doodle--sparkle-sm svg {
+  animation: hero-doodle-twinkle 4s ease-in-out 2.2s infinite;
+}
+
+.hero--doodles-in .hero-doodle--sparkle-sm svg {
+  animation-delay: 3.4s;
+}
+
+@keyframes hero-doodle-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes hero-doodle-rays {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* the noisy peaks twitch in height; scaled about the wave's own centre
+   line (transform-box below), the calm flat tail on that line stays put */
+@keyframes hero-doodle-jitter {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.82);
+  }
+}
+
+@keyframes hero-doodle-twinkle {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.75) rotate(20deg);
+    opacity: 0.55;
+  }
+}
+
+@keyframes hero-note-float {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -5px, 0);
+  }
+}
+
+@media (max-width: 1023px) {
+  .hero-note {
+    --pair-right: 2.5rem;
+    --pair-top: clamp(7rem, 17%, 12rem);
+    --pair-gap: 2rem;
+  }
+
+  /* the pair sits closer to the screen edge: keep the sparkle on screen */
+  .hero-doodle--sparkle-sm {
+    right: -1.9rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-note {
+    --fold: 1.2rem;
+    /* breathing room below the navbar: more on taller phones, kept modest
+       on short ones so the pair still clears the headline */
+    --phone-note-top: clamp(7rem, 15svh, 8.5rem);
+  }
+
+  .hero-note--ivory {
+    top: var(--phone-note-top);
+    left: 1.25rem;
+    right: auto;
+    width: 12.25rem;
+  }
+
+  .hero-note--lavender {
+    top: calc(var(--phone-note-top) + 8.75rem);
+    right: 1.25rem;
+    width: 12rem;
+  }
+
+  .hero-note-paper {
+    padding: 1.15rem 1.2rem 1.3rem;
+  }
+
+  .hero-note-text {
+    font-size: 1.15rem;
+  }
+
+  /* the notes sit diagonally here: bulb beside the ivory note (clear of
+     the logo), sparkles kept on screen, flight path off its side */
+  .hero-doodle--bulb {
+    top: 0.75rem;
+    left: auto;
+    right: -3.4rem;
+    width: 2.6rem;
+  }
+
+  .hero-doodle--noise {
+    bottom: -2.6rem;
+    width: 5.5rem;
+  }
+
+  /* the phone curve: off the ivory note's right side, down onto the
+     lavender note below it */
+  .hero-flight {
+    top: 55%;
+    left: calc(100% - 0.35rem);
+    width: 5.5rem;
+  }
+
+  .hero-flight-svg--wide {
+    display: none;
+  }
+
+  .hero-flight-svg--narrow {
+    display: block;
+  }
+
+  .hero-doodle--eye {
+    bottom: -2.9rem;
+    width: 3.6rem;
+  }
+
+  .hero-doodle--sparkle {
+    top: -2rem;
+    right: 0.4rem;
+    width: 1.1rem;
+  }
+
+  .hero-doodle--sparkle-sm {
+    top: -1.1rem;
+    right: 2rem;
+  }
+}
+
+/* shorter screens: the doodles hanging below the notes would reach the
+   headline */
+@media (max-height: 720px) and (min-width: 641px) {
+  .hero-doodle--noise,
+  .hero-flight,
+  .hero-doodle--eye {
+    display: none;
+  }
+}
+
+/* short landscape screens: the headline fills the height, no room left */
+@media (max-height: 480px) {
+  .hero-note {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-note {
+    animation: none;
+  }
+
+  /* doodles simply shown, fully drawn and still */
+  .hero-doodle path,
+  .hero-doodle circle {
+    stroke-dashoffset: 0;
+  }
+
+  .hero--doodles-in .hero-doodle path,
+  .hero--doodles-in .hero-doodle circle,
+  .hero--doodles-in .hero-doodle .hero-doodle-wave,
+  .hero--doodles-in .hero-doodle-rays,
+  .hero--doodles-in .hero-doodle svg {
+    animation: none;
+  }
+}
+
 .hero-content {
   /* the heading/lead font sizes and the lead's alignment offset (below)
      are all defined off this one variable instead of separately fixed
@@ -1227,7 +1684,8 @@ section {
   max-width: 15em;
   margin: 0;
   font-weight: 400;
-  font-size: clamp(2.6rem, 6vw, 6.75rem);
+  /* same size as the hero heading (.hero-content --hero-heading-size) */
+  font-size: clamp(1.75rem, 1rem + 5vw, 4rem);
   line-height: 0.98;
   letter-spacing: -0.02em;
   color: var(--color-text);
@@ -1239,6 +1697,19 @@ section {
   font-family: "Apply", serif;
   font-style: italic;
   color: var(--color-section-bg);
+}
+
+/* SplitText's line reveal ([data-split]) wraps each line in a mask
+   (overflow: clip) exactly one line-height tall. With this section's tight
+   line-heights (0.95-0.98) that box is shorter than the font, so the
+   descenders of g/y/p were clipped. Both the mask and the line get the
+   missing room at the bottom, cancelled by a negative margin, so layout and
+   line spacing are unchanged; the line's own padding grows its 110% hidden
+   offset with it, so lines stay fully hidden until they rise. */
+.services [data-split] > div,
+.services [data-split] > div > div {
+  padding-bottom: 0.2em;
+  margin-bottom: -0.2em;
 }
 
 .services-index {
@@ -1327,7 +1798,9 @@ section {
 .service-title {
   margin: 0;
   font-weight: 400;
-  font-size: clamp(2.5rem, 4.6vw, 5rem);
+  /* same size as the hero heading (.hero-content --hero-heading-size),
+     for every service whatever its tier */
+  font-size: clamp(1.75rem, 1rem + 5vw, 4rem);
   line-height: 0.95;
   letter-spacing: -0.015em;
   text-transform: uppercase;
@@ -1414,10 +1887,6 @@ section {
   padding: clamp(3.5rem, 5.5vw, 5.5rem) 0;
 }
 
-.service--featured .service-title {
-  font-size: clamp(2.9rem, 5.8vw, 6.5rem);
-}
-
 .service--featured .service-statement {
   font-size: clamp(1.35rem, 1.1rem + 0.8vw, 1.9rem);
 }
@@ -1426,15 +1895,11 @@ section {
   width: 1.75rem;
 }
 
-/* Logo + Label: a compact pair - smaller titles, and the body spread
-   across two columns so each row is shorter */
+/* Logo + Label: a compact pair - the body spread across two columns so
+   each row is shorter */
 .service--secondary {
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   padding: clamp(2rem, 3vw, 2.75rem) 0;
-}
-
-.service--secondary .service-title {
-  font-size: clamp(1.85rem, 3vw, 3.1rem);
 }
 
 .service--secondary .service-body {
@@ -1524,7 +1989,7 @@ section {
   }
 
   .services-statement {
-    font-size: clamp(2.3rem, 10.5vw, 3.4rem);
+    font-size: clamp(1.75rem, 1rem + 9vw, min(2.4rem, 6.5svh));
   }
 
   .services-index {
@@ -1543,15 +2008,7 @@ section {
   }
 
   .service-title {
-    font-size: clamp(2rem, 9.5vw, 2.75rem);
-  }
-
-  .service--featured .service-title {
-    font-size: clamp(2.2rem, 10.5vw, 3rem);
-  }
-
-  .service--secondary .service-title {
-    font-size: clamp(1.7rem, 8vw, 2.25rem);
+    font-size: clamp(1.75rem, 1rem + 9vw, min(2.4rem, 6.5svh));
   }
 
   .service-body {
