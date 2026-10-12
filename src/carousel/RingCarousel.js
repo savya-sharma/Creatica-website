@@ -91,6 +91,7 @@ const DEFAULTS = {
     fluidGlow: 0.9,         // extra border glow where the liquid passes
     externalPointer: false, // true: pointer data comes from setPointerInput()
     onActiveChange: null,   // (index, item) => void
+    onSelect: null,         // ({ cardIndex, itemIndex, item }) => void - a click/tap/Enter on a plane
 };
 
 // Rendering quality is chosen once, at startup, from the device.
@@ -200,6 +201,16 @@ export class RingCarousel {
 
         this.pointer = { x: 0, y: 0, smoothX: 0, smoothY: 0, px: -1e4, py: -1e4, energy: 0, lastX: 0, lastY: 0, lastT: 0 };
         this.lean = { target: 0, current: 0 }; // hover lean, -1..1 (+ = toward the right)
+        // Detail view support (see hold/setHiddenCard/setSuspended): while
+        // held the ring is frozen in place and ignores input, so a plane
+        // lifted out of it can be flown back to exactly where it left.
+        this.held = false;
+        this.suspended = false;
+        this.hiddenCard = -1;
+        this.raycaster = new THREE.Raycaster();
+        this.pickNdc = new THREE.Vector2();
+        this.tmpPoint = new THREE.Vector3();
+        this.hover = { x: 0, y: 0, inside: false, frame: 0 };
         this.rect = container.getBoundingClientRect();
 
         this.initRenderer();
@@ -666,6 +677,7 @@ export class RingCarousel {
     // pointer actually moves; a click (press + release in place) never
     // touches the rotation, momentum or auto-rotation.
     onPointerDown(e) {
+        if (this.held) return;
         if (e.pointerType === "mouse" && e.button !== 0) return;
         this.drag = {
             id: e.pointerId,
@@ -680,6 +692,10 @@ export class RingCarousel {
     }
 
     onPointerMove(e) {
+        if (this.held) return;
+        this.hover.x = e.clientX;
+        this.hover.y = e.clientY;
+        this.hover.inside = e.target === this.renderer.domElement;
         if (!this.options.externalPointer) {
             this.feedFluid(e.clientX, e.clientY);
             this.trackPointer(e.clientX, e.clientY);
@@ -726,7 +742,11 @@ export class RingCarousel {
         if (this.renderer.domElement.hasPointerCapture(e.pointerId)) {
             this.renderer.domElement.releasePointerCapture(e.pointerId);
         }
-        if (!drag.active) return; // a click: leave the rotation alone
+        if (!drag.active) {
+            // a click: leave the rotation alone, open whatever plane is under it
+            if (e.type === "pointerup") this.select(this.pickCard(e.clientX, e.clientY));
+            return;
+        }
 
         // A pause before release means the user stopped: no fling.
         if (performance.now() - drag.lastT > 90 || e.type !== "pointerup") this.velocity = 0;
@@ -764,11 +784,18 @@ export class RingCarousel {
     }
 
     onWheel(e) {
+        if (this.held) return;
         const max = this.maxVelocity;
         this.velocity = clamp(this.velocity - e.deltaY * 0.004 * this.step, -max, max);
     }
 
     onKeyDown(e) {
+        if (this.held) return;
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            this.select(this.frontCard());
+            return;
+        }
         if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
         e.preventDefault();
         // With exponential friction the ring coasts v / friction: one card.
@@ -818,6 +845,100 @@ export class RingCarousel {
         this.setPointerFromClient(clientX, clientY);
         this.feedFluid(clientX, clientY);
         this.pointer.energy = Math.max(this.pointer.energy, clamp(energy, 0, 1));
+    }
+
+    // -- selection / detail view ---------------------------------------------
+
+    // The plane under a viewport point, or -1. The occluder is part of the
+    // test so a rear plane seen "through" the front of the ring (which the
+    // depth mask hides on screen) can't be picked either.
+    pickCard(clientX, clientY) {
+        if (!this.cards.length) return -1;
+        const rect = this.container.getBoundingClientRect();
+        this.pickNdc.set(
+            ((clientX - rect.left) / rect.width) * 2 - 1,
+            -(((clientY - rect.top) / rect.height) * 2 - 1),
+        );
+        this.raycaster.setFromCamera(this.pickNdc, this.camera);
+        const targets = [this.occluder];
+        for (const card of this.cards) if (card.visible) targets.push(card);
+        const hit = this.raycaster.intersectObjects(targets, false)[0];
+        return hit && hit.object !== this.occluder ? this.cards.indexOf(hit.object) : -1;
+    }
+
+    // The plane closest to the front of the ring right now.
+    frontCard() {
+        return this.cards.length ? mod(Math.round(this.frontSlot()), this.cards.length) : -1;
+    }
+
+    select(cardIndex) {
+        if (cardIndex < 0 || this.held) return;
+        const itemIndex = cardIndex % this.items.length;
+        this.options.onSelect?.({ cardIndex, itemIndex, item: this.items[itemIndex] });
+    }
+
+    // A plane showing `itemIndex`: `preferred` if it still does and is on
+    // screen (the plane count can change on resize), else the visible one
+    // nearest the front, else -1.
+    cardForItem(itemIndex, preferred = -1) {
+        const onScreen = (i) => this.cards[i] && i % this.items.length === itemIndex
+            && Math.cos(i * this.step + this.offset) > this.visibleCos;
+        if (onScreen(preferred)) return preferred;
+        let best = -1;
+        let bestCos = -Infinity;
+        this.cards.forEach((_, i) => {
+            const c = Math.cos(i * this.step + this.offset);
+            if (onScreen(i) && c > bestCos) {
+                best = i;
+                bestCos = c;
+            }
+        });
+        return best;
+    }
+
+    // The plane's four corners projected to viewport pixels, clockwise from
+    // top-left: the exact on-screen shape a DOM copy has to start from.
+    getCardQuad(cardIndex) {
+        const card = this.cards[cardIndex];
+        if (!card || !this.layout) return null;
+        const rect = this.container.getBoundingClientRect();
+        this.camera.position.copy(this.cameraBase);
+        this.camera.lookAt(this.cameraTarget);
+        this.camera.updateMatrixWorld();
+        card.updateWorldMatrix(true, false);
+        return [[-0.5, 0.5], [0.5, 0.5], [0.5, -0.5], [-0.5, -0.5]].map(([x, y]) => {
+            const p = this.tmpPoint.set(x, y, 0).applyMatrix4(card.matrixWorld).project(this.camera);
+            return [rect.left + ((p.x + 1) / 2) * rect.width, rect.top + ((1 - p.y) / 2) * rect.height];
+        });
+    }
+
+    // Width / height of a plane (a DOM copy keeps these proportions).
+    getCardAspect() {
+        return this.layout ? this.layout.cardW / this.layout.cardH : 0.7;
+    }
+
+    // Freeze the ring (motion, lean, input) so it stays exactly where it is.
+    hold(on) {
+        this.held = on;
+        if (!on) return;
+        this.velocity = 0;
+        this.targetOffset = this.offset;
+        this.drag = null;
+        this.hover.inside = false;
+        this.container.classList.remove("is-dragging", "is-over-card");
+        this.fluid?.pointerLeave();
+    }
+
+    // Hide one plane (with its glow, body and reflection) while its DOM
+    // copy is out of the ring; -1 shows them all again.
+    setHiddenCard(cardIndex) {
+        this.hiddenCard = cardIndex;
+        if (this.layout) this.positionCards();
+    }
+
+    // Skip rendering while something opaque covers the whole carousel.
+    setSuspended(on) {
+        this.suspended = on;
     }
 
     // -- layout --------------------------------------------------------------
@@ -1075,7 +1196,7 @@ export class RingCarousel {
             // Planes past the ring's silhouette (seen from the camera) are
             // behind the depth mask and can never be seen: skip drawing them
             // in both passes, with their glow and sidewall.
-            const visible = Math.cos(angle) > this.visibleCos;
+            const visible = Math.cos(angle) > this.visibleCos && i !== this.hiddenCard;
             card.visible = visible;
             glow.visible = visible;
             const side = this.sides[i];
@@ -1183,6 +1304,20 @@ export class RingCarousel {
         this.options.onActiveChange?.(itemIndex, this.items[itemIndex]);
     }
 
+    // Pointer cursor over a plane. The ring moves under a still mouse, so
+    // this is re-checked from the frame loop (every few frames) rather than
+    // only on pointermove.
+    updateHover() {
+        const { hover } = this;
+        if (this.held || this.drag?.active) return;
+        if (!hover.inside) {
+            this.container.classList.remove("is-over-card");
+            return;
+        }
+        if (++hover.frame % 4) return;
+        this.container.classList.toggle("is-over-card", this.pickCard(hover.x, hover.y) >= 0);
+    }
+
     // Bound once as a class field (not in bindEvents' .bind() list) since
     // the constructor hands it straight to setAnimationLoop.
     tick = () => {
@@ -1191,11 +1326,13 @@ export class RingCarousel {
         // fling the ring through several seconds of motion in one jump.
         const dt = Math.min((now - this.lastTime) / 1000, 1 / 30);
         this.lastTime = now;
+        if (this.suspended) return;
         this.elapsed += dt;
 
-        this.updateMotion(dt);
-
-        this.lean.current = damp(this.lean.current, this.lean.target, this.options.leanDamping, dt);
+        if (!this.held) {
+            this.updateMotion(dt);
+            this.lean.current = damp(this.lean.current, this.lean.target, this.options.leanDamping, dt);
+        }
         // Negated: a positive Z rotation is counter-clockwise (top leans
         // left) in Three.js's convention, but onPointerMove's own comment
         // above ("mouse left -> lean right") states the opposite as the
@@ -1213,6 +1350,7 @@ export class RingCarousel {
 
         this.updateFocus(dt);
         this.assignItems();
+        this.updateHover();
 
         // Pointer energy (drives the glass ripple in cardFragment) decays
         // on its own; trackPointer only ever raises it on real movement.
