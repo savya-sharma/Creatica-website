@@ -143,9 +143,13 @@ function computeLayout(width, height, itemCount, options) {
 
     // Neighbouring centres sit one chord apart: chord = cardW * (1 + gap).
     const chordAngle = 2 * Math.asin(Math.min(0.99, (cardW * (1 + options.minGap)) / (2 * idealRadius)));
-    // Independent of the number of images: planes pick up images as they
-    // pass round the back (see assignItems), so any dataset size works.
-    const planeCount = clamp(Math.round(TAU / chordAngle), Math.min(itemCount, 8), options.maxPlanes);
+    // Plane i shows items[i % itemCount] (buildPlanes), so the count is
+    // rounded to a whole number of item cycles - otherwise the sequence
+    // breaks where the ring closes (e.g. 30 planes over 9 items shows items
+    // 1-3 twice in a row). The gap below absorbs the rounding.
+    const fitted = clamp(Math.round(TAU / chordAngle), Math.min(itemCount, 8), options.maxPlanes);
+    const cycles = Math.max(1, Math.round(fitted / itemCount));
+    const planeCount = Math.min(cycles, Math.max(1, Math.floor(options.maxPlanes / itemCount))) * itemCount;
 
     const halfStep = Math.PI / planeCount;
     const gap = clamp((2 * idealRadius * Math.sin(halfStep)) / cardW - 1, options.minGap, options.maxGap);

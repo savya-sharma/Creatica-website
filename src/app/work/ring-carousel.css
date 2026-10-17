@@ -36,6 +36,15 @@
   outline-offset: -6px;
 }
 
+/* the hero's mouse fluid laid over the ring (WorkRingCarousel.jsx). It
+   reads the pointer from window, so none of it needs pointer events - and
+   the R3F canvas wrapper sets its own pointer-events: auto, which would
+   otherwise swallow every drag, click and hover meant for the ring */
+.slider .hero-fluid,
+.slider .hero-fluid * {
+  pointer-events: none !important;
+}
+
 .ring-carousel__canvas {
   display: block;
   width: 100%;

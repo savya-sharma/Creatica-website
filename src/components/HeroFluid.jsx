@@ -536,7 +536,7 @@ function resetPointer(p) {
   });
 }
 
-function Scene({ root, tablet }) {
+function Scene({ root, tablet, look }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const size = useThree((s) => s.size);
@@ -549,12 +549,13 @@ function Scene({ root, tablet }) {
         dyeDissipation: CONFIG.DYE_DISSIPATION,
         displaceGain: CONFIG.DISPLACE_GAIN,
         displaceMax: CONFIG.DISPLACE_MAX,
-        inkAlpha: CONFIG.INK_ALPHA,
-        bloom: CONFIG.BLOOM,
-        sheen: CONFIG.SHEEN,
+        inkAlpha: look?.inkAlpha ?? CONFIG.INK_ALPHA,
+        bloom: look?.bloom ?? CONFIG.BLOOM,
+        sheen: look?.sheen ?? CONFIG.SHEEN,
         colorA: CONFIG.COLOR_A,
         colorB: CONFIG.COLOR_B,
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- read once, like CONFIG
     []
   );
   const reveal = useMemo(() => createReveal(root, TEXTS.length), [root]);
@@ -792,7 +793,9 @@ class FluidBoundary extends Component {
   }
 }
 
-export default function HeroFluid() {
+// `look` optionally overrides the ink layer's strengths ({ inkAlpha,
+// bloom, sheen }) for another page; the hero itself uses CONFIG as is.
+export default function HeroFluid({ look } = {}) {
   const wrapRef = useRef(null);
   const [state, setState] = useState({ enabled: false, root: null, tablet: false });
 
@@ -828,7 +831,7 @@ export default function HeroFluid() {
           camera={{ position: [0, 0, 100], near: 0.1, far: 200, zoom: 1 }}
           gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
         >
-          <Scene root={state.root} tablet={state.tablet} />
+          <Scene root={state.root} tablet={state.tablet} look={look} />
         </Canvas>
         </FluidBoundary>
       )}

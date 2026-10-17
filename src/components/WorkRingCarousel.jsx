@@ -6,6 +6,12 @@ import gsap from "gsap";
 import { RingCarousel } from "@/carousel/RingCarousel.js";
 import { workSlides } from "@/carousel/workData.js";
 import { lenisStore } from "@/lib/lenis";
+import HeroFluid from "@/components/HeroFluid";
+
+// The hero fluid, a touch softer: on this dark page its white halo reads
+// as a glow. Only the halo and ink opacity drop (hero: 0.22 / 0.36); the
+// motion, colour and glossy sheen stay exactly the hero's.
+const FLUID_LOOK = { bloom: 0.14, inkAlpha: 0.3 };
 
 // Project detail transition
 // -------------------------
@@ -448,6 +454,12 @@ export default function WorkRingCarousel() {
         aria-label="Work - press Enter to open the front project"
         aria-keyshortcuts="ArrowLeft ArrowRight Enter"
       />
+
+      {/* the hero's own mouse fluid (same component and settings), over the
+          ring: .hero-fluid ignores the pointer, so drags and clicks still
+          reach the carousel. Its headline/note warping finds nothing to
+          warp here and stays idle. */}
+      <HeroFluid look={FLUID_LOOK} />
 
       {isClient && createPortal(
         <div
