@@ -113,13 +113,15 @@ float fluidDensity(vec3 dye) {
 export const cardFragment = /* glsl */ `
 uniform sampler2D uMap;
 uniform float uImageAspect;
+uniform vec4 uCrop;           // image part that fills the plane: uv offset (xy) + size (zw)
 uniform float uReady;
 
 uniform vec2 uSize;
 uniform float uRadius;
 uniform float uBorder;
-uniform vec3 uBorderColor;
+uniform vec3 uBorderColor;   // the planes' strip light
 uniform vec3 uCoreColor;
+uniform vec3 uTintColor;     // theme colour, for the centre wash
 uniform float uInnerGlow;
 uniform float uTime;
 
@@ -206,17 +208,19 @@ void main() {
     float influence = exp(-(pd * pd) / (uPointerRadius * uPointerRadius)) * uPointerEnergy;
     uv += normalize(toPointer + 1e-4) * sin(pd * 0.045 - uTime * 7.0) * 0.006 * influence;
 
-    // object-fit: cover
+    // object-fit: cover, over the cropped part of the image
     float cardAspect = uSize.x / uSize.y;
-    vec2 fit = cardAspect > uImageAspect
-        ? vec2(1.0, uImageAspect / cardAspect)
-        : vec2(cardAspect / uImageAspect, 1.0);
+    float cropAspect = uImageAspect * uCrop.z / uCrop.w;
+    vec2 fit = cardAspect > cropAspect
+        ? vec2(1.0, cropAspect / cardAspect)
+        : vec2(cardAspect / cropAspect, 1.0);
+    fit *= uCrop.zw;
     // Slight colour separation where the liquid displaces the image most:
     // red and blue refract a little more/less than green. Smooth, bounded.
     float separation = clamp(length(shift) / max(uFluidMaxShift, 1e-5), 0.0, 1.0) * uFluidChroma;
     vec2 chroma = shift * separation;
     if (!gl_FrontFacing) chroma.x = -chroma.x;
-    vec2 imageUv = (uv - 0.5) * fit + 0.5;
+    vec2 imageUv = uCrop.xy + uCrop.zw * 0.5 + (uv - 0.5) * fit;
     vec3 image = vec3(
         texture2D(uMap, imageUv - chroma * fit).r,
         texture2D(uMap, imageUv).g,
@@ -254,17 +258,17 @@ void main() {
     vec2 screenMid = (gl_FragCoord.xy / uResolution - 0.5) * vec2(uResolution.x / uResolution.y, 1.0);
     float nearCentre = exp(-(screenMid.x * screenMid.x) / 0.12);
     float tint = planeFade * uCenterTint * (uFocus + (1.0 - uFocus) * 0.25 * nearCentre);
-    vec3 tintHue = uBorderColor / max(max(uBorderColor.r, uBorderColor.g), uBorderColor.b);
+    vec3 tintHue = uTintColor / max(max(uTintColor.r, uTintColor.g), uTintColor.b);
     float hueLum = dot(tintHue, vec3(0.2126, 0.7152, 0.0722));
     col = mix(col, col * tintHue / hueLum, tint * 0.6);
-    col += uBorderColor * tint * 0.35 * (1.0 - clamp(col, 0.0, 1.0));
+    col += uTintColor * tint * 0.35 * (1.0 - clamp(col, 0.0, 1.0));
 
     // Edge bloom: the theme light bleeding gently into the image, strongest
     // at the outline and gone within a short distance; the centred plane
     // gets a little more plus a faint, broad spill. Screen-blended, so dark
     // areas lift slightly while highlights and colours are left intact.
     float bleed = exp(-fromEdge / uBloomWidth) * mix(uEdgeBloom, uEdgeBloomFocused, uFocus)
-        + exp(-fromEdge / (uBloomWidth * 3.5)) * uSurfaceBloom * uFocus;
+        + exp(-fromEdge / (uBloomWidth * 3.5)) * uSurfaceBloom;
     col += uBorderColor * bleed * (1.0 - clamp(col, 0.0, 1.0));
 
     if (!gl_FrontFacing) col *= 0.5;
@@ -327,7 +331,7 @@ void main() {
     // distant edges); a little stronger on the centred card.
     vec3 lightDir = normalize(vec3(0.0, 0.8, 1.0));
     float sheen = pow(max(dot(n, normalize(lightDir + viewDir)), 0.0), 4.0);
-    col += uBorderColor * sheen * uSideBloom * (0.35 + 0.65 * uFocus);
+    col += uBorderColor * sheen * uSideBloom;
     // Always darker than the image face.
     col = min(col, uBorderColor * 1.3);
 
@@ -377,7 +381,7 @@ void main() {
         ? clamp(fluidDensity(texture2D(uFluidDye, gl_FragCoord.xy / uResolution).rgb) * 1.8, 0.0, 1.0)
         : 0.0;
     // The centred plane's halo is broader and softer as well as brighter.
-    float width = uGlowWidth * (1.0 + fluidAmount * 0.6 + uFocus * 0.9);
+    float width = uGlowWidth * (1.0 + fluidAmount * 0.6); // same halo on every plane
     float halo = 0.6 * exp(-dist / (width * 0.25)) + 0.4 * exp(-dist / width);
     halo *= 1.0 + fluidAmount * uFluidGlow * 0.5;
     halo *= 1.0 - smoothstep(uMargin * 0.6, uMargin, d); // reach zero inside the quad

@@ -20,7 +20,9 @@ function Doodle({ className, viewBox, children }) {
   );
 }
 
-export default function Hero() {
+// fluidInk={false}: the page draws the fluid's ink in a layer shared with
+// the sections below (see page.js); the hero still warps its own text
+export default function Hero({ fluidInk = true } = {}) {
   const heroRef = useRef(null);
 
   // a reload on Home should always land back on the Hero, never wherever
@@ -99,7 +101,7 @@ export default function Hero() {
         </Doodle>
       </div>
 
-      <HeroFluid />
+      <HeroFluid ink={fluidInk} />
 
       <div className="hero-content">
         <div className="hero-lead">

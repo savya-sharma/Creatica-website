@@ -8,7 +8,7 @@
   position: relative;
   width: 100%;
   height: 100svh;
-  background: #0b1011;
+  background: #000000; /* matches the ring's backdrop (RingCarousel backdropColor) */
   overflow: hidden;
 }
 
@@ -97,18 +97,21 @@
   background: #0b1011;
 }
 
+/* sized and placed by fitImage() (WorkRingCarousel.jsx) to show exactly
+   what the plane's shader shows: the workData crop, covering the box */
 .work-detail__media img {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover; /* same fit as the plane's shader */
+  max-width: none;
   user-select: none;
 }
 
 /* prev/next: the next image wipes in over the current one */
 .work-detail__media .work-detail__incoming {
-  position: absolute;
-  inset: 0;
   visibility: hidden;
 }
 

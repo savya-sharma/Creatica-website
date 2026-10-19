@@ -36,6 +36,10 @@
 }
 
 .contact-right {
+  /* above the site's mouse fluid (SiteFluid.jsx); the ink passes over the
+     fixed image on the left */
+  position: relative;
+  z-index: 1;
   margin-left: 50%;
   min-height: 100vh;
 }

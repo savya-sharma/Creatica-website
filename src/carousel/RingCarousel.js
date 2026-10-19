@@ -37,40 +37,54 @@ const DEFAULTS = {
     // Border glow, computed per card from its rounded-rect shape (no
     // screen-space bloom). Widths are fractions of the card width.
     borderColor: "#586A6B",
+    // The planes' own light: a soft strip light along each card's edge,
+    // fading a little way into the image (edge, halo, bleed, inner glow,
+    // card body, lower rim). Backdrop, floor, fluid and the centre wash keep
+    // the theme colour above. A light colour, so the strengths below are
+    // kept low - it should read as a gentle edge light, not a neon tube.
+    stripColor: "#99A395",
+    // The page behind the ring: flat colour plus a soft central glow (the
+    // glow is backdropGlow x the theme colour; 0 = none). The floor fades
+    // into these same values in the distance, so it always meets the page
+    // seamlessly; the grid and the floor's reflection are unaffected.
+    backdropColor: "#000000",
+    backdropGlow: 0,
     borderWidth: 0.008,     // falloff width of the luminous edge
-    edgeLight: 2.2,         // edge brightness, as a multiple of the border colour
+    edgeLight: 1.65,        // edge brightness, as a multiple of the border colour
     edgeOpacity: 0.7,       // how much the edge covers the image at the outline
     coreWhiteness: 0.45,    // lower rim line: how far its core leans from the theme colour toward white
-    innerGlow: 0.14,        // subtle glow just inside the edge
-    glowStrength: 0.8,      // outer halo brightness
+    innerGlow: 0.21,        // glow just inside the edge
+    glowStrength: 0.4,      // outer halo brightness
     // Falloff of the outer tail. Kept below the gap between planes so
     // neighbouring tails don't merge into a band under the row.
     glowWidth: 0.028,
     glowMargin: 0.2,        // how far the glow quad extends past the card
     cardThickness: 0.07,    // extruded depth behind each plane, of card width
     cardBevel: 0.45,        // rounding of the back edge, as a share of the thickness
-    sideShade: 0.7,         // sidewall brightness relative to the border colour
-    sideBloom: 1.5,         // soft highlight where the rounded edge catches the light
-    // Centre focus: the plane crossing the screen centre gets the strong glow.
+    sideShade: 0.45,        // sidewall brightness relative to the border colour
+    sideBloom: 0.8,         // soft highlight where the rounded edge catches the light
+    // Centre focus: the plane crossing the screen centre. The border light
+    // is the same on every plane (centred and side values below are equal,
+    // the extra centre boosts are 0); focus now only drives the centre wash.
     focusWidth: 1,          // falloff span, in plane spacings from the centre
     focusDamping: 10,       // smoothing of each plane's focus amount
-    glowUnfocused: 0.45,    // outer-glow multiplier away from the centre
-    glowFocused: 2.6,       // outer-glow multiplier at the centre
-    focusCore: 0.5,         // extra edge brightness at the centre
-    focusInner: 1.6,        // extra inner glow at the centre
+    glowUnfocused: 1.6,     // outer-glow multiplier away from the centre
+    glowFocused: 1.6,       // outer-glow multiplier at the centre
+    focusCore: 0,           // extra edge brightness at the centre
+    focusInner: 0,          // extra inner glow at the centre
     centerTint: 0.55,       // soft theme-colour fade on the centred image (0 = off)
     // Soft image edges and theme light bleeding into them (fractions of card height).
     edgeFeather: 0.03,      // width of the soft falloff into the outline
     featherDepth: 0.22,     // how much the image dims at the very edge
     edgeBloom: 0.35,        // edge bleed on side/rear planes
-    edgeBloomFocused: 0.9,  // edge bleed on the centred plane
-    bloomWidth: 0.05,       // falloff of the edge bleed
-    surfaceBloom: 0.18,     // faint, broad spill onto the centred image
+    edgeBloomFocused: 0.35, // edge bleed on the centred plane
+    bloomWidth: 0.05,       // falloff of the edge bleed: the strip light's fade inward
+    surfaceBloom: 0.18,     // faint, broad spill onto every image
     // Lower rim beneath the planes (fractions of card width / height).
     rimOffset: 0.03,        // gap below the plane bottoms, of card height
     rimCoreWidth: 0.004,    // half-width of the bright line
     rimHaloWidth: 0.03,     // falloff of its soft glow
-    rimStrength: 0.7,
+    rimStrength: 0.4,
     leanAngle: 1.5,         // max hover lean in degrees, away from the mouse
     leanDamping: 2.5,       // how quickly the lean follows the mouse
     // Full-screen mouse fluid behind the carousel (off with reduced motion).
@@ -279,9 +293,9 @@ export class RingCarousel {
             new THREE.PlaneGeometry(1, 1),
             new THREE.ShaderMaterial({
                 uniforms: {
-                    // Near-black and a faint glow, both in the theme hue.
-                    uBase: { value: this.theme.clone().multiplyScalar(0.04) },
-                    uGlow: { value: this.theme.clone().multiplyScalar(0.2) },
+                    // The page colour and its central glow (backdropColor / backdropGlow).
+                    uBase: { value: new THREE.Color(this.options.backdropColor) },
+                    uGlow: { value: this.theme.clone().multiplyScalar(this.options.backdropGlow) },
                     uAspect: { value: 1 },
                     uFluid: { value: null },
                     uFluidStrength: { value: this.fluid ? this.options.fluidStrength : 0 },
@@ -306,12 +320,14 @@ export class RingCarousel {
         const { options } = this;
 
         // Uniform objects shared by every card and glow material.
-        const borderColor = new THREE.Color(options.borderColor);
+        const borderColor = new THREE.Color(options.stripColor ?? options.borderColor);
         this.shared = {
             uSize: { value: new THREE.Vector2(1, 1) },
             uRadius: { value: 0.1 },
             uBorder: { value: 0.01 },
             uBorderColor: { value: borderColor },
+            // the centred plane's soft colour wash stays in the theme colour
+            uTintColor: { value: new THREE.Color(options.borderColor) },
             uCoreColor: { value: borderColor.clone().lerp(new THREE.Color(1, 1, 1), options.coreWhiteness) },
             uInnerGlow: { value: options.innerGlow },
             uMargin: { value: 0.2 },
@@ -508,6 +524,11 @@ export class RingCarousel {
                     uFocus: focus,
                     uMap: { value: entry.texture },
                     uImageAspect: { value: entry.aspect },
+                    // the image part that fills the plane (workData `crop`),
+                    // as uv offset + size; v counts from the bottom
+                    uCrop: { value: item.crop
+                        ? new THREE.Vector4(item.crop.x, 1 - item.crop.y - item.crop.h, item.crop.w, item.crop.h)
+                        : new THREE.Vector4(0, 0, 1, 1) },
                     uReady: { value: entry.loaded ? 1 : 0 },
                 },
                 vertexShader: surfaceVertex,

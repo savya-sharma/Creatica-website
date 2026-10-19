@@ -6,12 +6,7 @@ import gsap from "gsap";
 import { RingCarousel } from "@/carousel/RingCarousel.js";
 import { workSlides } from "@/carousel/workData.js";
 import { lenisStore } from "@/lib/lenis";
-import HeroFluid from "@/components/HeroFluid";
-
-// The hero fluid, a touch softer: on this dark page its white halo reads
-// as a glow. Only the halo and ink opacity drop (hero: 0.22 / 0.36); the
-// motion, colour and glossy sheen stay exactly the hero's.
-const FLUID_LOOK = { bloom: 0.14, inkAlpha: 0.3 };
+import HeroFluid, { DARK_FLUID_LOOK } from "@/components/HeroFluid";
 
 // Project detail transition
 // -------------------------
@@ -36,6 +31,31 @@ const subscribeNoop = () => () => {};
 const lerp = (a, b, t) => a + (b - a) * t;
 const lerpQuad = (a, b, t) => a.map(([x, y], i) => [lerp(x, b[i][0], t), lerp(y, b[i][1], t)]);
 const rectQuad = (r) => [[r.left, r.top], [r.right, r.top], [r.right, r.bottom], [r.left, r.bottom]];
+
+// The DOM twin of the plane shader's crop + cover: sizes and offsets `img`
+// (absolutely positioned in a box of `boxAspect`) so the workData `crop`
+// rectangle covers the box, centred - exactly what the plane shows, so the
+// flying image matches its plane. No crop = plain object-fit: cover.
+function fitImage(img, crop, boxAspect) {
+  const { x = 0, y = 0, w = 1, h = 1 } = crop ?? {};
+  const imageAspect = img.naturalWidth / img.naturalHeight || 1;
+  const cropAspect = (imageAspect * w) / h;
+  let width; // % of the box width / height
+  let height;
+  if (cropAspect > boxAspect) {
+    height = 100 / h;
+    width = (height * imageAspect) / boxAspect;
+  } else {
+    width = 100 / w;
+    height = (width * boxAspect) / imageAspect;
+  }
+  Object.assign(img.style, {
+    width: `${width}%`,
+    height: `${height}%`,
+    left: `${50 - (x + w / 2) * width}%`,
+    top: `${50 - (y + h / 2) * height}%`,
+  });
+}
 
 function scaleQuad(quad, scale) {
   const cx = quad.reduce((sum, [x]) => sum + x, 0) / 4;
@@ -200,6 +220,7 @@ export default function WorkRingCarousel() {
         // fall through: a broken image still flies, just empty
       }
       if (token !== state.token || state.phase !== "opening") return;
+      fitImage(image, item.crop, carousel.getCardAspect());
 
       const box = measureFrame();
       const target = rectQuad(box);
@@ -329,6 +350,8 @@ export default function WorkRingCarousel() {
       } catch {
         // swap anyway: the text still has to follow
       }
+      const boxAspect = carousel ? carousel.getCardAspect() : 0.7;
+      fitImage(incoming, workSlides[next].crop, boxAspect);
       if (token !== state.token || state.phase !== "open") {
         state.switching = false;
         return;
@@ -355,6 +378,7 @@ export default function WorkRingCarousel() {
           } catch {
             // nothing to wait for
           }
+          fitImage(image, workSlides[next].crop, boxAspect);
           gsap.set(image, { clearProps: "transform" });
           gsap.set(incoming, { visibility: "hidden" });
           state.switching = false;
@@ -459,7 +483,7 @@ export default function WorkRingCarousel() {
           ring: .hero-fluid ignores the pointer, so drags and clicks still
           reach the carousel. Its headline/note warping finds nothing to
           warp here and stays idle. */}
-      <HeroFluid look={FLUID_LOOK} />
+      <HeroFluid look={DARK_FLUID_LOOK} />
 
       {isClient && createPortal(
         <div
@@ -501,19 +525,9 @@ export default function WorkRingCarousel() {
                     )}
                     <p className="work-detail__description" data-reveal>{project.description}</p>
                     <dl className="work-detail__meta" data-reveal>
-                      {project.client && (
-                        <div>
-                          <dt>Client</dt>
-                          <dd>{project.client}</dd>
-                        </div>
-                      )}
                       <div>
                         <dt>Discipline</dt>
                         <dd>{project.category}</dd>
-                      </div>
-                      <div>
-                        <dt>Deliverables</dt>
-                        <dd>{project.deliverables.join(", ")}</dd>
                       </div>
                     </dl>
                   </div>

@@ -9,6 +9,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import FooterInfoGrid from "./FooterInfoGrid";
 import CornerDownRightIcon from "./icons/CornerDownRightIcon";
+import { FooterFluid } from "@/components/SiteFluid";
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
@@ -93,6 +94,7 @@ export default function Footer() {
 
   return (
     <footer className="site-footer" ref={footerRef}>
+      <FooterFluid />
       <div className="site-footer-cta">
         <div className="site-footer-cta-main">
           <h2 className="site-footer-heading">

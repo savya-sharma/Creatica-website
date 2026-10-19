@@ -18,7 +18,9 @@ const CONFIG = {
   SIM_HEIGHT_TABLET: 96,
   PRESSURE_ITERATIONS_DESKTOP: 16,
   PRESSURE_ITERATIONS_TABLET: 10,
-  VELOCITY_DISSIPATION: 1.5,
+  // how fast the flow calms after a stroke (higher = settles sooner, less
+  // sloshing); the ink itself fades on DYE_DISSIPATION, unchanged
+  VELOCITY_DISSIPATION: 1.9,
   DYE_DISSIPATION: 1.1,
   // brush follows the pointer with inertia instead of snapping to it
   BRUSH_STIFFNESS: 16,
@@ -28,7 +30,7 @@ const CONFIG = {
   // only stops a hitch from turning into one oversized impulse
   MAX_SPEED: 6000,
   MAX_SPLATS: 8,
-  SPLAT_FORCE: 0.55,
+  SPLAT_FORCE: 0.48, // push per stroke
   SPLAT_RADIUS: 0.001,
   SPLAT_RADIUS_SPEED: 0.002,
   INK_BASE: 0.05,
@@ -38,7 +40,7 @@ const CONFIG = {
   COLOR_B: "#ffffff",
   INK_ALPHA: 0.36,
   // soft halo around the ink, and the glossy highlight riding its surface
-  BLOOM: 0.22,
+  BLOOM: 0.14,
   SHEEN: 0.85,
   // text displacement: px of drift added per px/s of flow, and its soft cap
   DISPLACE_GAIN: 0.055,
@@ -536,7 +538,7 @@ function resetPointer(p) {
   });
 }
 
-function Scene({ root, tablet, look }) {
+function Scene({ root, tablet, look, ink }) {
   const gl = useThree((s) => s.gl);
   const scene = useThree((s) => s.scene);
   const size = useThree((s) => s.size);
@@ -558,6 +560,15 @@ function Scene({ root, tablet, look }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- read once, like CONFIG
     []
   );
+  // the look can change while the fluid runs (SiteFluid eases it as a
+  // dark footer scrolls in): applied straight to the ink layer's uniforms
+  const inkAlpha = look?.inkAlpha ?? CONFIG.INK_ALPHA;
+  const bloom = look?.bloom ?? CONFIG.BLOOM;
+  const sheen = look?.sheen ?? CONFIG.SHEEN;
+  useEffect(() => {
+    fluid.setLook({ inkAlpha, bloom, sheen });
+    invalidate();
+  }, [fluid, inkAlpha, bloom, sheen, invalidate]);
   const reveal = useMemo(() => createReveal(root, TEXTS.length), [root]);
   const pointer = useRef(null);
   if (pointer.current === null) pointer.current = resetPointer({});
@@ -590,7 +601,9 @@ function Scene({ root, tablet, look }) {
     warmed.current = false;
     fresh.current = true;
     looping.current = false;
-    scene.add(fluid.displayMesh);
+    // without its ink the simulation still runs: it drives the text and
+    // note warping, while a shared layer elsewhere draws the ink
+    if (ink) scene.add(fluid.displayMesh);
     fluid.warm(gl).then(() => {
       if (cancelled) return;
       warmed.current = true;
@@ -602,7 +615,7 @@ function Scene({ root, tablet, look }) {
       scene.remove(fluid.displayMesh);
       fluid.dispose();
     };
-  }, [scene, fluid, gl, invalidate]);
+  }, [scene, fluid, gl, invalidate, ink]);
 
   useEffect(() => () => reveal.reset(), [reveal]);
 
@@ -793,9 +806,17 @@ class FluidBoundary extends Component {
   }
 }
 
+// The hero fluid a touch softer, for dark pages (Work, About): there its
+// white halo reads as a glow. Only the halo and ink opacity drop (hero:
+// 0.14 / 0.36); the motion, colour and glossy sheen stay exactly the hero's.
+export const HERO_FLUID_LOOK = { inkAlpha: CONFIG.INK_ALPHA, bloom: CONFIG.BLOOM, sheen: CONFIG.SHEEN };
+export const DARK_FLUID_LOOK = { ...HERO_FLUID_LOOK, bloom: 0.085, inkAlpha: 0.3 };
+
 // `look` optionally overrides the ink layer's strengths ({ inkAlpha,
 // bloom, sheen }) for another page; the hero itself uses CONFIG as is.
-export default function HeroFluid({ look } = {}) {
+// `ink={false}` keeps the text/note warping but leaves the ink to a
+// shared layer (the home page draws one across all its sections).
+export default function HeroFluid({ look, ink = true } = {}) {
   const wrapRef = useRef(null);
   const [state, setState] = useState({ enabled: false, root: null, tablet: false });
 
@@ -831,7 +852,7 @@ export default function HeroFluid({ look } = {}) {
           camera={{ position: [0, 0, 100], near: 0.1, far: 200, zoom: 1 }}
           gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
         >
-          <Scene root={state.root} tablet={state.tablet} look={look} />
+          <Scene root={state.root} tablet={state.tablet} look={look} ink={ink} />
         </Canvas>
         </FluidBoundary>
       )}

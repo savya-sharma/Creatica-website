@@ -6,6 +6,7 @@ import SmoothScroll from "@/components/SmoothScroll";
 import Navbar from "@/components/Navbar";
 import Preloader from "@/components/Preloader";
 import Footer from "@/components/Footer";
+import SiteFluid from "@/components/SiteFluid";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,8 +44,14 @@ export default function RootLayout({ children }) {
         <Preloader />
         <SmoothScroll />
         <Navbar />
-        {children}
-        <Footer />
+        {/* page + footer share one copy of the hero's mouse fluid, so ink
+            flows from the page into the footer with no edge between them
+            (SiteFluid.jsx decides where it shows) */}
+        <div className="site-fluid-zone">
+          {children}
+          <Footer />
+          <SiteFluid />
+        </div>
       </body>
     </html>
   );

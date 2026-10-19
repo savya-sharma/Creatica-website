@@ -5,7 +5,6 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import AboutPeopleSlider from "@/components/AboutPeopleSlider";
-import { AboutFluidBackground } from "@/employee-section/backgroundFluid";
 // import Profilegallery from "@/components/Profilegaller";
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
@@ -40,15 +39,6 @@ const CAPABILITIES = [
 export default function About() {
   const pageRef = useRef(null);
 
-  // mouse-driven smoke behind the whole page (outside the employee slider,
-  // which stirs its own fluid); torn down with its WebGL context on leave
-  useEffect(() => {
-    const page = pageRef.current;
-    if (!page) return;
-    const background = new AboutFluidBackground(page);
-    return () => background.dispose();
-  }, []);
-
   // same masked bottom-to-top line reveal used on the Services section,
   // applied per-section here so each block triggers independently as it
   // scrolls into view rather than all at once
@@ -73,6 +63,10 @@ export default function About() {
         mask: "lines",
         autoSplit: true,
         onSplit(self) {
+          // the lines are now in place (shown, or masked for their reveal),
+          // so the section's text may paint - see .is-text-ready in about.css
+          trigger.classList.add("is-text-ready");
+
           if (prefersReducedMotion || hasPlayed) {
             gsap.set(self.lines, { yPercent: 0 });
             return;

@@ -458,5 +458,12 @@ export function createFluid(options) {
       });
   }
 
-  return { resize, step, warm, dispose, displayMesh, textUniforms, state };
+  // the ink layer's strengths, changeable while running
+  function setLook({ inkAlpha, bloom, sheen }) {
+    display.uniforms.uAlpha.value = inkAlpha;
+    display.uniforms.uBloom.value = bloom;
+    display.uniforms.uSheen.value = sheen;
+  }
+
+  return { resize, step, warm, dispose, setLook, displayMesh, textUniforms, state };
 }

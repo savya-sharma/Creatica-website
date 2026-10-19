@@ -1655,6 +1655,104 @@ section {
   overflow: hidden;
 }
 
+/* the home sections (page.js) - their ink comes from the site layer below */
+.home-fluid-zone {
+  position: relative;
+}
+
+/* TRIAL (to compare): the hero background - surface colour + the corner-
+   tick pixel grid, same values as .hero - carried under Manifesto and
+   Services. Painted once on the shared zone (all three sections go
+   transparent) so the grid runs on unbroken across every seam. Delete this
+   block to go back to the plain surface below the hero. */
+.home-fluid-zone {
+  background-color: var(--color-surface);
+  background-image: url("data:image/svg+xml;utf8,<svg width='51' height='51' viewBox='0 0 51 51' fill='none' xmlns='http://www.w3.org/2000/svg'><line x1='4.18933' y1='0' x2='4.18933' y2='8.124' stroke='%23072f33' stroke-opacity='0.5'/><line y1='3.93469' x2='8.1989' y2='3.93469' stroke='%23072f33' stroke-opacity='0.5'/></svg>");
+  background-size: var(--hero-pixel-w, 12px) var(--hero-pixel-h, 12px);
+  background-position: 0 0;
+}
+
+.home-fluid-zone > .hero,
+.home-fluid-zone > .manifesto,
+.home-fluid-zone > .services {
+  background: transparent;
+}
+/* END TRIAL */
+
+/* -- site-wide hero mouse fluid (SiteFluid.jsx, layout.js) -----------------
+   One layer behind a page and its footer together. The zone keeps the
+   body's column layout for what it wraps; the track spans it, and the
+   viewport-sized layer inside stays pinned while the page scrolls (over the
+   whole page, the fluid's cells and splats would dwarf the hero's). The
+   layer comes last, so it paints over backgrounds and visuals; text is
+   lifted above it (z-index 1+) section by section. */
+.site-fluid-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+
+.site-fluid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.site-fluid-viewport {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+}
+
+/* footer-only copy, for pages without their own (same scale, clipped to
+   the footer) */
+.footer-fluid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.footer-fluid-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100svh;
+}
+
+/* the fluid reads the pointer from window, so none of it needs pointer
+   events - and the R3F canvas wrapper sets its own pointer-events: auto,
+   which would otherwise catch clicks and hovers meant for the page */
+.site-fluid *,
+.footer-fluid * {
+  pointer-events: none !important;
+}
+
+/* footer content above the ink */
+.site-footer > :not(.footer-fluid) {
+  position: relative;
+  z-index: 1;
+}
+
+/* the hero's own canvas (its fluid-warped headline and notes) above the
+   shared ink - the ink still passes over the paper notes (z-index 0, and
+   earlier in the page) - and still under .hero-content (z-index 1, later) */
+.home-fluid-zone > .hero > .hero-fluid {
+  z-index: 1;
+}
+
+/* Services text above the ink, as .hero-content is in the hero (the
+   Manifesto statement and pills already sit at z-index 2) */
+.services > .services-intro,
+.services > .services-index {
+  position: relative;
+  z-index: 1;
+}
+
 .services-intro {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 9fr);

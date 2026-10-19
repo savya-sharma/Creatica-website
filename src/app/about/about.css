@@ -6,6 +6,34 @@
   padding: 8rem 4rem 8rem 20%;
 }
 
+/* every section above the site's mouse fluid (SiteFluid.jsx) */
+.about-page > .about-section {
+  position: relative;
+  z-index: 1;
+}
+
+/* the people slider paints its own background in the page colour; clear it
+   so the ink shows around and between the portraits, as the old smoke did */
+.about-page .people-section {
+  background-color: transparent;
+}
+
+/* The text is rendered visible, but About.jsx splits it into masked lines
+   only once the page runs (and fonts load) - without this it paints in
+   full, vanishes, then plays its reveal. Each section's text stays hidden
+   until its own split is ready (.is-text-ready); the delayed animation is a
+   failsafe so the text still appears if the script never runs. */
+.about-section:not(.is-text-ready) :is(h1, h2, h3, p) {
+  visibility: hidden;
+  animation: about-text-failsafe 0s linear 2.5s forwards;
+}
+
+@keyframes about-text-failsafe {
+  to {
+    visibility: visible;
+  }
+}
+
 .about-section {
   padding-top: 5rem;
   margin-top: 5rem;
