@@ -107,7 +107,13 @@ async function decodeFramed(employee, framing, delay) {
   // cover crop (white over a real background reads as a shade).
   const edge = topEdge(full, w, h);
   const fill = edge.transparent || (isPng(employee.image) && edge.white) ? framing.pngBackground : null;
-  const rect = framePortrait(w, h, employee.focus, framing, !!fill);
+  // `extendTop` (data.js): a photo cropped close above the head gets the
+  // same headroom as the rest, made from its own top edge mirrored and
+  // softened - for busy backgrounds, where a flat fill would read as a band.
+  const extend = !fill && !!employee.extendTop;
+  // `headSize` (data.js) overrides the shared head size for one portrait
+  const own = employee.headSize ? { ...framing, headSize: employee.headSize } : framing;
+  const rect = framePortrait(w, h, employee.focus, own, !!fill || extend);
 
   const scale = Math.min(1, framing.maxHeight / rect.height);
   const canvas = document.createElement("canvas");
@@ -134,6 +140,16 @@ async function decodeFramed(employee, framing, delay) {
     ctx.fillStyle = fill;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
+  if (extend && dy > 0) {
+    // the photo flipped upward about its top edge, blurred a touch more the
+    // further it reaches, so the background simply carries on
+    ctx.save();
+    ctx.filter = `blur(${Math.max(2, Math.round(dy * 0.08))}px)`;
+    ctx.translate(0, dy);
+    ctx.scale(1, -1);
+    ctx.drawImage(crop, 0, 0, canvas.width, dh);
+    ctx.restore();
+  }
   ctx.drawImage(crop, 0, dy, canvas.width, dh);
   crop.close();
   return { source: canvas, width: canvas.width, height: canvas.height, ok: true };
@@ -144,6 +160,8 @@ function framingKey(employee, framing) {
   return [
     employee.image,
     f ? `${f.top},${f.chin},${f.x}` : "-",
+    employee.extendTop ? "extend" : "",
+    employee.headSize ?? "",
     framing.planeAspect,
     framing.headTop,
     framing.headSize,
