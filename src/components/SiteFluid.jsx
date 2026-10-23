@@ -11,14 +11,23 @@ import HeroFluid, { DARK_FLUID_LOOK, HERO_FLUID_LOOK } from "./HeroFluid";
 // Pages listed here get the fluid over their own content too, in the look
 // that suits their background; on every other page with a footer, the
 // footer alone gets it (FooterFluid). /work runs its own copy over the ring
-// (WorkRingCarousel.jsx) and has no footer.
+// (WorkRingCarousel.jsx) and has no footer. A key also covers the pages
+// below it ("/pricing" -> "/pricing/<service>").
 const PAGE_LOOKS = {
   "/": HERO_FLUID_LOOK,
   "/about": DARK_FLUID_LOOK,
   "/contact": HERO_FLUID_LOOK,
+  "/pricing": HERO_FLUID_LOOK,
 };
 
-const hasPageFluid = (pathname) => Object.hasOwn(PAGE_LOOKS, pathname);
+function lookFor(pathname) {
+  if (!pathname) return undefined;
+  if (Object.hasOwn(PAGE_LOOKS, pathname)) return PAGE_LOOKS[pathname];
+  const section = Object.keys(PAGE_LOOKS).find((key) => key !== "/" && pathname.startsWith(`${key}/`));
+  return section ? PAGE_LOOKS[section] : undefined;
+}
+
+const hasPageFluid = (pathname) => lookFor(pathname) !== undefined;
 
 const lerp = (a, b, t) => a + (b - a) * t;
 const mixLook = (a, b, t) => ({
@@ -65,7 +74,7 @@ function useFooterShare(enabled) {
 // dark footer fills the screen, the ink eases into the softer dark look.
 export default function SiteFluid() {
   const pathname = usePathname();
-  const base = PAGE_LOOKS[pathname];
+  const base = lookFor(pathname);
   const footerShare = useFooterShare(Boolean(base));
   if (!base) return null;
 

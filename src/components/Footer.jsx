@@ -108,9 +108,9 @@ export default function Footer() {
             Meaningful
           </h2>
 
-          <a className="site-footer-button btn-glass" href="mailto:contact@creaticacrown.com">
+          <Link className="site-footer-button btn-glass" href="/contact">
             <RollingText>Start Project</RollingText> <span>&rarr;</span>
-          </a>
+          </Link>
         </div>
 
         <div className="site-footer-info">

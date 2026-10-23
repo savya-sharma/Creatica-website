@@ -119,7 +119,7 @@ const REVEAL_START = "top 80%";
 export default function Services() {
   const sectionRef = useRef(null);
   const indexRef = useRef(null);
-  const markerRef = useRef(null);
+  const counterRef = useRef(null);
   const viewportRef = useRef(null);
   const trackRef = useRef(null);
 
@@ -137,7 +137,7 @@ export default function Services() {
     ).matches;
 
     const ctx = gsap.context(() => {
-      const blocks = gsap.utils.toArray(".services-intro, .service", container);
+      const blocks = gsap.utils.toArray(".services-aside, .services-intro, .service", container);
 
       const splits = blocks.map((block) => {
         // guards against the scroll reveal re-hiding/replaying text that has
@@ -205,53 +205,89 @@ export default function Services() {
     return () => ctx.revert();
   }, []);
 
-  // The section's one motif: a hairline rail down the index whose darker
-  // segment glides to whichever service the pointer is on, and rests on Web
-  // Development otherwise. Hover-capable pointers only - the CSS hides the
-  // rail on touch, where there is nothing for it to follow.
+  // Scroll-linked reading focus. As each service crosses the middle of the
+  // screen it becomes the active one: the sticky counter in the aside rolls
+  // to its number and its title comes to full strength (CSS, .is-active).
+  // Each row's divider fills as it is read, the counter's bar fills over the
+  // whole list, and titles drift gently against the scroll. With reduced
+  // motion the counter and focus still follow; nothing moves on its own.
   useEffect(() => {
+    const container = sectionRef.current;
     const index = indexRef.current;
-    const marker = markerRef.current;
-    if (!index || !marker) return;
-    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    const counter = counterRef.current;
+    if (!container || !index || !counter) return undefined;
 
-    const rows = Array.from(index.querySelectorAll(".service"));
-    const home = index.querySelector(".service--featured") ?? rows[0];
-    let current = home;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const rows = gsap.utils.toArray(".service", index);
+    const track = counter.querySelector(".services-counter-track");
+    const bar = counter.querySelector(".services-counter-bar-fill");
+    let active = -1;
 
-    // spans the row's label + title, measured against the index itself so
-    // the result doesn't depend on scroll position
-    const place = (row, immediate = false) => {
-      current = row;
-      const head = row.querySelector(".service-head");
-      const indexTop = index.getBoundingClientRect().top;
-      const headRect = head.getBoundingClientRect();
-      gsap.to(marker, {
-        y: headRect.top - indexTop,
-        height: headRect.height,
-        duration: immediate ? 0 : 0.7,
+    const setActive = (i) => {
+      if (i === active) return;
+      active = i;
+      rows.forEach((row, r) => row.classList.toggle("is-active", r === i));
+      gsap.to(track, {
+        yPercent: (-100 / rows.length) * i,
+        duration: reduced ? 0 : 0.8,
         ease: "power3.inOut",
         overwrite: true,
       });
     };
+    setActive(0);
 
-    const handlers = rows.map((row) => {
-      const onEnter = () => place(row);
-      row.addEventListener("pointerenter", onEnter);
-      return [row, onEnter];
-    });
-    const onLeave = () => place(home);
-    index.addEventListener("pointerleave", onLeave);
+    const ctx = gsap.context(() => {
+      rows.forEach((row, i) => {
+        ScrollTrigger.create({
+          trigger: row,
+          start: "top 55%",
+          end: "bottom 55%",
+          onEnter: () => setActive(i),
+          onEnterBack: () => setActive(i),
+        });
 
-    // type reflowing (resize, fonts, the line split) moves the rows under it
-    const observer = new ResizeObserver(() => place(current, true));
-    observer.observe(index);
+        if (reduced) return;
+        gsap.fromTo(
+          row.querySelector(".service-progress"),
+          { scaleX: 0 },
+          {
+            scaleX: 1,
+            ease: "none",
+            scrollTrigger: { trigger: row, start: "top 60%", end: "bottom 60%", scrub: true },
+          }
+        );
+        gsap.fromTo(
+          row.querySelector(".service-head"),
+          { y: 28 },
+          {
+            y: -28,
+            ease: "none",
+            scrollTrigger: { trigger: row, start: "top bottom", end: "bottom top", scrub: true },
+          }
+        );
+      });
+
+      // the counter shows while the list is being read
+      ScrollTrigger.create({
+        trigger: index,
+        start: "top 70%",
+        end: "bottom 40%",
+        onToggle: (self) => counter.classList.toggle("is-visible", self.isActive),
+      });
+      gsap.fromTo(
+        bar,
+        { scaleY: 0 },
+        {
+          scaleY: 1,
+          ease: "none",
+          scrollTrigger: { trigger: index, start: "top 55%", end: "bottom 55%", scrub: reduced ? false : true },
+        }
+      );
+    }, container);
 
     return () => {
-      handlers.forEach(([row, onEnter]) => row.removeEventListener("pointerenter", onEnter));
-      index.removeEventListener("pointerleave", onLeave);
-      observer.disconnect();
-      gsap.killTweensOf(marker);
+      ctx.revert();
+      rows.forEach((row) => row.classList.remove("is-active"));
     };
   }, []);
 
@@ -357,22 +393,37 @@ export default function Services() {
 
   return (
     <div className="services" ref={sectionRef}>
-      <header className="services-intro">
+      {/* the slim left column: eyebrow, then the reading counter, which
+          pins while the list scrolls past (decorative - every row carries
+          its own number) */}
+      <aside className="services-aside">
         <p className="services-eyebrow" data-fade>
           <span>Services</span>
           <span className="services-eyebrow-slash" aria-hidden="true">/</span>
           <span>Capabilities</span>
         </p>
+        <div className="services-counter" ref={counterRef} aria-hidden="true">
+          <span className="services-counter-window">
+            <span className="services-counter-track">
+              {SERVICES.map((service, i) => (
+                <span key={service.title}>{String(i + 1).padStart(2, "0")}</span>
+              ))}
+            </span>
+          </span>
+          <span className="services-counter-total">/ {String(SERVICES.length).padStart(2, "0")}</span>
+          <span className="services-counter-bar">
+            <span className="services-counter-bar-fill" />
+          </span>
+        </div>
+      </aside>
+
+      <header className="services-intro">
         <h2 className="services-statement" data-split>
           Where strategy, design and technology <em>meet.</em>
         </h2>
       </header>
 
       <div className="services-index" ref={indexRef}>
-        <span className="services-rail" aria-hidden="true">
-          <span className="services-rail-marker" ref={markerRef} />
-        </span>
-
         {SERVICES.map((service, index) => {
           const number = String(index + 1).padStart(2, "0");
           const titleId = `service-${number}`;
@@ -382,7 +433,9 @@ export default function Services() {
               key={service.title}
               aria-labelledby={titleId}
             >
-              <span className="service-rule" aria-hidden="true" />
+              <span className="service-rule" aria-hidden="true">
+                <span className="service-progress" />
+              </span>
 
               <div className="service-head">
                 <span className="service-number" data-fade>

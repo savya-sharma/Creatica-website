@@ -47,6 +47,7 @@ function getCrownBrushEase() {
 const MENU_LINKS = [
   { href: "/about", label: "About" },
   { href: "/work", label: "Work" },
+  { href: "/pricing", label: "Pricing" },
   { href: "/contact", label: "Contact" },
 ];
 

@@ -1645,14 +1645,21 @@ section {
 }
 
 /* ---- services (components/Services.jsx) --------------------------------
-   An editorial index rather than a card grid: an intro statement, then the
-   five services stacked as rows whose weight follows their tier (featured >
-   primary > secondary). Type, scale and whitespace carry the hierarchy; the
-   only ornament is the hairline rail down the index (.services-rail). */
+   An editorial index rather than a card grid. A slim left column holds the
+   eyebrow and a reading counter that pins while the list scrolls; the wide
+   column holds the intro statement and the services, every one open: title
+   left, details right. Scroll does the rest - the service being read comes
+   to full strength, its divider fills, titles drift gently. Type, scale and
+   whitespace carry the hierarchy. */
 .services {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 9fr);
+  column-gap: 2rem;
   padding: clamp(6rem, 10vw, 10rem) 2rem clamp(5rem, 8vw, 8rem);
   background-color: var(--color-surface);
-  overflow: hidden;
+  /* clip, not hidden: hidden would make this a scroll container, and the
+     counter (position: sticky) would never stick */
+  overflow: clip;
 }
 
 /* the home sections (page.js) - their ink comes from the site layer below */
@@ -1747,25 +1754,97 @@ section {
 
 /* Services text above the ink, as .hero-content is in the hero (the
    Manifesto statement and pills already sit at z-index 2) */
+.services > .services-aside,
 .services > .services-intro,
 .services > .services-index {
   position: relative;
   z-index: 1;
 }
 
+.services-aside {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
 .services-intro {
-  display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 9fr);
-  column-gap: 2rem;
-  align-items: start;
+  grid-column: 2;
   margin-bottom: clamp(5rem, 9vw, 9rem);
+}
+
+/* the reading counter: pins at mid-screen while the list is read, its
+   number rolling to the service in view (Services.jsx) */
+.services-counter {
+  position: sticky;
+  top: calc(50svh - 4.5rem);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: end;
+  column-gap: 0.75rem;
+  row-gap: 1.25rem;
+  margin-top: clamp(10rem, 20vw, 16rem);
+  opacity: 0;
+  transform: translateY(0.75rem);
+  transition:
+    opacity 0.6s ease,
+    transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.services-counter.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.services-counter-window {
+  display: block;
+  height: 1em;
+  overflow: hidden;
+  font-family: "Apply", serif;
+  font-style: italic;
+  font-size: clamp(4rem, 2rem + 4.5vw, 7.5rem);
+  line-height: 1;
+  color: var(--color-text);
+}
+
+.services-counter-track {
+  display: block;
+}
+
+.services-counter-track > span {
+  display: block;
+  height: 1em;
+}
+
+.services-counter-total {
+  padding-bottom: 0.6rem;
+  font-family: "IBM", monospace;
+  font-size: 0.72rem;
+  font-weight: 300;
+  letter-spacing: 0.14em;
+  color: var(--color-section-bg);
+}
+
+/* progress through the whole list */
+.services-counter-bar {
+  grid-column: 1 / -1;
+  position: relative;
+  width: 1px;
+  height: clamp(5rem, 9vw, 8rem);
+  background-color: rgba(7, 47, 51, 0.15);
+}
+
+.services-counter-bar-fill {
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-text);
+  transform: scaleY(0);
+  transform-origin: top center;
 }
 
 .services-eyebrow {
   display: flex;
   gap: 0.6rem;
   margin: 0;
-  padding-top: 0.9rem;
+  padding-top: 1.1rem;
   font-family: "IBM", monospace;
   font-size: 0.72rem;
   font-weight: 300;
@@ -1812,26 +1891,7 @@ section {
 
 .services-index {
   position: relative;
-  padding-left: clamp(2rem, 4vw, 4rem);
-}
-
-.services-rail {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 1px;
-  background-color: rgba(7, 47, 51, 0.12);
-}
-
-/* placed and sized by Services.jsx - zero height until then */
-.services-rail-marker {
-  position: absolute;
-  top: 0;
-  left: -0.5px;
-  width: 2px;
-  height: 0;
-  background-color: var(--color-text);
+  grid-column: 2;
 }
 
 .service {
@@ -1850,6 +1910,15 @@ section {
   right: 0;
   height: 1px;
   background-color: rgba(7, 47, 51, 0.15);
+}
+
+/* fills as the row is read (scroll-scrubbed, Services.jsx) */
+.service-progress {
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-text);
+  transform: scaleX(0);
+  transform-origin: left center;
 }
 
 /* the darker line that runs along the rule on hover */
@@ -1898,13 +1967,23 @@ section {
   font-weight: 400;
   /* same size as the hero heading (.hero-content --hero-heading-size),
      for every service whatever its tier */
-  font-size: clamp(1.75rem, 1rem + 5vw, 4rem);
+  font-size: clamp(1.9rem, 0.9rem + 3.4vw, 3.75rem);
   line-height: 0.95;
   letter-spacing: -0.015em;
   text-transform: uppercase;
   overflow-wrap: break-word;
   color: var(--color-text);
-  transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition:
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+    opacity 0.7s ease;
+}
+
+/* reading focus: the service in view at full strength, the rest eased
+   back (titles only - the details always stay fully readable) */
+@media (min-width: 1001px) {
+  .service:not(.is-active) .service-title {
+    opacity: 0.3;
+  }
 }
 
 .service-body {
@@ -1993,26 +2072,13 @@ section {
   width: 1.75rem;
 }
 
-/* Logo + Label: a compact pair - the body spread across two columns so
-   each row is shorter */
+/* Logo + Label: the same shape as the rest, a little tighter */
 .service--secondary {
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-  padding: clamp(2rem, 3vw, 2.75rem) 0;
-}
-
-.service--secondary .service-body {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  column-gap: 2.5rem;
-  padding-top: 1.6rem;
+  padding: clamp(2.25rem, 3.2vw, 3rem) 0;
 }
 
 .service--secondary .service-statement {
-  max-width: none;
-  font-size: clamp(1.05rem, 0.95rem + 0.3vw, 1.2rem);
-}
-
-.service--secondary .service-capabilities {
-  grid-row: span 2;
+  font-size: clamp(1.1rem, 1rem + 0.35vw, 1.3rem);
 }
 
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
@@ -2022,6 +2088,7 @@ section {
 
   .service:hover .service-title {
     transform: translateX(0.6rem);
+    opacity: 1;
   }
 
   .service:hover .service-rule::after {
@@ -2037,25 +2104,30 @@ section {
   }
 }
 
-/* nothing for the rail to follow without a hovering pointer */
-@media (hover: none), (pointer: coarse) {
-  .services-index {
-    padding-left: 0;
-  }
-
-  .services-rail {
-    display: none;
-  }
-}
-
 @media (max-width: 1000px) {
   .services {
     padding-inline: 2rem;
   }
 
-  .services-intro {
-    grid-template-columns: 1fr;
-    row-gap: 1.75rem;
+  /* one column: eyebrow, statement, list - the counter only reads well
+     beside a wide list */
+  .services {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .services-aside,
+  .services-intro,
+  .services-index {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .services-aside {
+    margin-bottom: 1.75rem;
+  }
+
+  .services-counter {
+    display: none;
   }
 
   .services-eyebrow {
@@ -2066,14 +2138,6 @@ section {
   .service--secondary {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     column-gap: 2.5rem;
-  }
-
-  .service--secondary .service-body {
-    grid-template-columns: 1fr;
-  }
-
-  .service--secondary .service-capabilities {
-    grid-row: auto;
   }
 }
 
@@ -2088,14 +2152,6 @@ section {
 
   .services-statement {
     font-size: clamp(1.75rem, 1rem + 9vw, min(2.4rem, 6.5svh));
-  }
-
-  .services-index {
-    padding-left: 0;
-  }
-
-  .services-rail {
-    display: none;
   }
 
   .service,
@@ -2846,4 +2902,15 @@ section {
   width: 82%;
   height: 50%;
   object-fit: contain;
+}
+
+/* organic blob page transition (components/PageTransition.jsx,
+   lib/pageTransition/) - over everything but the entry preloader */
+.page-transition {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: none;
+  width: 100%;
+  height: 100%;
 }

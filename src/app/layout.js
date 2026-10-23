@@ -7,6 +7,7 @@ import Navbar from "@/components/Navbar";
 import Preloader from "@/components/Preloader";
 import Footer from "@/components/Footer";
 import SiteFluid from "@/components/SiteFluid";
+import PageTransition from "@/components/PageTransition";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,8 @@ export default function RootLayout({ children }) {
             for why nothing here waits on JS/hydration to cover the Hero */}
         <Preloader />
         <SmoothScroll />
+        {/* organic blob transition between in-site pages */}
+        <PageTransition />
         <Navbar />
         {/* page + footer share one copy of the hero's mouse fluid, so ink
             flows from the page into the footer with no edge between them

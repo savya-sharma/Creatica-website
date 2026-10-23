@@ -1,0 +1,696 @@
+/* Scoped to .pricing-page so nothing here collides with sitewide rules.
+   Shared by /pricing (components/pricing/PricingDirectory.jsx) and each
+   /pricing/<slug> page (PricingService.jsx): a full-screen light surface,
+   rows on a 12-column grid - name | tags + description | price + action -
+   separated by thin rules. */
+
+.pricing-page {
+  --pricing-panel: #cecfc9; /* the site surface colour (--color-surface) */
+  --pricing-ink: var(--color-text);
+  --pricing-muted: rgba(7, 47, 51, 0.62);
+  --pricing-rule: rgba(7, 47, 51, 0.16);
+  --pricing-gutter: clamp(1.25rem, 2.5vw, 2.25rem);
+
+  position: relative;
+  min-height: 100svh;
+  /* the light surface fills the whole screen (no dark frame) */
+  padding: clamp(5rem, 9vh, 6.5rem) clamp(1rem, 3vw, 2.5rem) clamp(3rem, 6vh, 4.5rem);
+  background-color: var(--pricing-panel);
+  color: var(--pricing-ink);
+}
+
+/* text reveal (PricingReveal.jsx): the text stays hidden until it has been
+   split into masked lines, so it never paints in full first and then
+   vanishes; the delayed animation is a failsafe in case the script never
+   runs. Closed plan details are not part of the reveal. */
+.pricing-page:not(.is-text-ready) :is(h1, h2, h3, p, .pricing-terms li, .pricing-trail-home, .pricing-tags, .pricing-button, .pricing-addon):not(.pricing-details *) {
+  visibility: hidden;
+  animation: pricing-text-failsafe 0s linear 2.5s forwards;
+}
+
+@keyframes pricing-text-failsafe {
+  to {
+    visibility: visible;
+  }
+}
+
+/* the sitewide `section` rule (globals.css) makes every section a clipped,
+   full-screen panel for the home page; these are ordinary content blocks */
+.pricing-page section {
+  height: auto;
+  overflow: visible;
+  will-change: auto;
+}
+
+/* above the site's mouse fluid (SiteFluid.jsx); see-through, so the ink
+   shows across the page (the page behind it is the same colour) */
+.pricing-panel {
+  position: relative;
+  z-index: 1;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* -- shared type ------------------------------------------------------- */
+
+.pricing-label {
+  margin: 0;
+  font-family: "IBM", monospace;
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pricing-muted);
+}
+
+.pricing-row-number {
+  display: block;
+  margin-bottom: 0.6rem;
+  font-family: "IBM", monospace;
+  font-size: 0.75rem;
+  color: var(--pricing-muted);
+}
+
+/* -- intro ------------------------------------------------------------- */
+
+.pricing-intro {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--pricing-gutter);
+  row-gap: 1.25rem;
+  align-items: end;
+  padding: clamp(2rem, 4vw, 3.25rem) 0 clamp(2.25rem, 4.5vw, 3.5rem);
+  border-bottom: 1px solid var(--pricing-rule);
+}
+
+.pricing-intro > .pricing-label {
+  grid-column: 1 / -1;
+}
+
+.pricing-heading {
+  grid-column: 1 / 7;
+  margin: 0;
+  font-family: "AppleRegular", serif;
+  font-size: clamp(2.75rem, 1.6rem + 3.6vw, 5.5rem);
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.pricing-intro-side {
+  grid-column: 7 / 13;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.25rem 2rem;
+}
+
+.pricing-intro-text {
+  max-width: 24rem;
+  margin: 0;
+  font-family: "PP Neue", sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* -- service rows ------------------------------------------------------ */
+
+.pricing-service-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 2rem;
+  padding: 1.5rem 0 1.25rem;
+  border-bottom: 1px solid var(--pricing-rule);
+}
+
+.pricing-service-head .pricing-label {
+  color: var(--pricing-ink);
+}
+
+.pricing-row {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--pricing-gutter);
+  padding: 1.75rem 0;
+  border-bottom: 1px solid var(--pricing-rule);
+}
+
+.pricing-row-name {
+  grid-column: 1 / 7;
+}
+
+.pricing-row-title {
+  margin: 0;
+  font-family: "AppleRegular", serif;
+  font-size: clamp(2rem, 1.3rem + 2.2vw, 3.5rem);
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: -0.015em;
+  text-transform: uppercase;
+}
+
+/* tags at the top, description at the foot of the row, as the reference */
+.pricing-row-body {
+  grid-column: 7 / 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2.5rem;
+  min-height: clamp(11rem, 16vw, 13.5rem);
+}
+
+.pricing-row-description {
+  max-width: 22rem;
+  margin: 0;
+  font-family: "PP Neue", sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.pricing-row-action {
+  grid-column: 10 / 13;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-left: clamp(0rem, 2vw, 2rem);
+}
+
+.pricing-price {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0;
+}
+
+.pricing-price-amount {
+  font-family: "PP Neue", sans-serif;
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.pricing-price-period {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--pricing-muted);
+}
+
+/* -- tags (pills) ------------------------------------------------------ */
+
+.pricing-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pricing-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.38rem 0.75rem;
+  border-radius: 999px;
+  background-color: var(--pricing-ink);
+  color: var(--pricing-panel);
+  font-family: "PP Neue", sans-serif;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* -- buttons -----------------------------------------------------------
+   The site's own button: the liquid-glass pill (.btn-glass, globals.css -
+   material, hover lift, focus ring, press) with a RollingText label and an
+   arrow, as the footer's "Start Project" and the contact form's "Send it".
+   Only size, type and text colour are set here (dark text: these sit on a
+   light page, like .contact-submit). */
+
+.pricing-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.75rem;
+  border-radius: 999px;
+  color: var(--pricing-ink);
+  font-family: "PP Neue", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pricing-button-arrow {
+  display: inline-block;
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (hover: hover) {
+  .pricing-button:hover .pricing-button-arrow {
+    transform: translateX(3px);
+  }
+}
+
+/* plus that turns into a cross while the plan is open */
+.pricing-button-icon {
+  position: relative;
+  flex: 0 0 auto;
+  width: 0.7rem;
+  height: 0.7rem;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pricing-button-icon::before,
+.pricing-button-icon::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+}
+
+.pricing-button-icon::after {
+  transform: rotate(90deg);
+}
+
+.pricing-row.is-open .pricing-button-icon {
+  transform: rotate(45deg);
+}
+
+/* -- expanded plan details --------------------------------------------- */
+
+.pricing-details {
+  grid-column: 7 / 13;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pricing-row.is-open .pricing-details {
+  grid-template-rows: 1fr;
+}
+
+.pricing-details-inner {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.pricing-row.is-open .pricing-details-inner {
+  opacity: 1;
+  transition-delay: 0.1s;
+}
+
+.pricing-details-content {
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--pricing-rule);
+}
+
+.pricing-deliverables {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem var(--pricing-gutter);
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pricing-deliverables li {
+  position: relative;
+  padding-left: 1.1rem;
+  font-family: "PP Neue", sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.pricing-deliverables li::before {
+  content: "+";
+  position: absolute;
+  left: 0;
+  font-family: "IBM", monospace;
+  color: var(--pricing-muted);
+}
+
+/* plan headline (in the row), "best for" note (in the details) and the
+   line under the packages - all from the source PDF */
+.pricing-row-headline {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 500;
+}
+
+.pricing-best-for {
+  max-width: 34rem;
+  margin: 1.5rem 0 0;
+  font-family: "Apply", serif;
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+
+.pricing-plans-note {
+  margin: 0;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid var(--pricing-rule);
+  font-family: "IBM", monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--pricing-muted);
+}
+
+/* -- add-ons, process, terms ------------------------------------------- */
+
+.pricing-block {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--pricing-gutter);
+  row-gap: 1.5rem;
+  padding: clamp(2.25rem, 4vw, 3.25rem) 0;
+  border-bottom: 1px solid var(--pricing-rule);
+}
+
+.pricing-block-title {
+  grid-column: 1 / 7;
+  margin: 0;
+  font-family: "AppleRegular", serif;
+  font-size: clamp(1.6rem, 1.1rem + 1.5vw, 2.5rem);
+  font-weight: 400;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.pricing-block-body,
+.pricing-terms {
+  grid-column: 7 / 13;
+}
+
+.pricing-addons {
+  display: grid;
+  gap: 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pricing-addon {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+}
+
+.pricing-addon .pricing-tag {
+  justify-self: start;
+  white-space: normal;
+}
+
+.pricing-addon-note,
+.pricing-note,
+.pricing-terms li,
+.pricing-step p {
+  font-family: "PP Neue", sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.pricing-note {
+  margin: 1.75rem 0 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--pricing-rule);
+}
+
+.pricing-note .pricing-label {
+  margin-right: 0.5rem;
+}
+
+.pricing-steps {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--pricing-gutter);
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pricing-step {
+  padding-top: 1rem;
+  border-top: 1px solid var(--pricing-ink);
+}
+
+.pricing-step-title {
+  margin: 0 0 0.5rem;
+  font-family: "AppleRegular", serif;
+  font-size: 1.4rem;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.pricing-step p {
+  max-width: 16rem;
+  margin: 0;
+}
+
+.pricing-terms {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: pricing-term;
+}
+
+.pricing-terms li {
+  position: relative;
+  padding-left: 2rem;
+  counter-increment: pricing-term;
+}
+
+.pricing-terms li::before {
+  content: counter(pricing-term, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  font-family: "IBM", monospace;
+  font-size: 0.75rem;
+  line-height: 1.9;
+  color: var(--pricing-muted);
+}
+
+/* -- breadcrumb, notes, text links ------------------------------------ */
+
+.pricing-trail a {
+  /* a sitewide link style sets its own font; keep the label type */
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.3s ease, color 0.3s ease;
+}
+
+.pricing-trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.35rem;
+}
+
+/* the arrow home, in place of the site name */
+.pricing-trail .pricing-trail-home {
+  display: inline-grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-right: 0.4rem;
+  border: 1px solid var(--pricing-rule);
+  border-radius: 50%;
+  font-size: 0.8rem;
+  line-height: 1;
+  transition: border-color 0.3s ease, color 0.3s ease, transform 0.3s ease;
+}
+
+.pricing-trail .pricing-trail-home:hover,
+.pricing-trail .pricing-trail-home:focus-visible {
+  border-color: var(--pricing-ink);
+  transform: translateX(-2px);
+}
+
+.pricing-trail a:hover,
+.pricing-trail a:focus-visible {
+  color: var(--pricing-ink);
+  border-bottom-color: currentColor;
+}
+
+.pricing-intro-side {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.pricing-intro-note {
+  max-width: 26rem;
+  margin: 0;
+  font-family: "IBM", monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--pricing-muted);
+}
+
+.pricing-trail a:focus-visible {
+  outline: 2px solid var(--pricing-ink);
+  outline-offset: 3px;
+}
+
+/* -- directory (/pricing) ---------------------------------------------- */
+
+.pricing-dir {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pricing-dir-item {
+  border-bottom: 1px solid var(--pricing-rule);
+}
+
+/* only its Explore Pricing button is a link */
+.pricing-dir-row {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: var(--pricing-gutter);
+  padding: 1.75rem 0;
+}
+
+.pricing-dir-name {
+  grid-column: 1 / 7;
+}
+
+.pricing-dir-body {
+  grid-column: 7 / 10;
+  align-self: end;
+}
+
+.pricing-dir-action {
+  grid-column: 10 / 13;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-left: clamp(0rem, 2vw, 2rem);
+}
+
+/* -- responsive -------------------------------------------------------- */
+
+@media (max-width: 1100px) {
+  .pricing-row-body {
+    grid-column: 7 / 13;
+  }
+
+  .pricing-dir-body {
+    grid-column: 7 / 13;
+  }
+
+  .pricing-dir-action {
+    grid-column: 7 / 13;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-top: 1.25rem;
+    padding-left: 0;
+  }
+
+  .pricing-row-action {
+    grid-column: 7 / 13;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-top: 1.25rem;
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .pricing-page {
+    padding-inline: 1rem;
+  }
+
+  .pricing-heading,
+  .pricing-intro-side,
+  .pricing-row-name,
+  .pricing-row-body,
+  .pricing-dir-name,
+  .pricing-dir-body,
+  .pricing-dir-action,
+  .pricing-row-action,
+  .pricing-details,
+  .pricing-block-title,
+  .pricing-block-body,
+  .pricing-terms {
+    grid-column: 1 / -1;
+  }
+
+  .pricing-row-name,
+  .pricing-dir-name {
+    margin-bottom: 1.25rem;
+  }
+
+  .pricing-dir-body {
+    align-self: start;
+  }
+
+  .pricing-row-body {
+    min-height: 0;
+    gap: 1.25rem;
+  }
+
+  .pricing-deliverables,
+  .pricing-addon {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pricing-addon {
+    gap: 0.4rem;
+  }
+
+  .pricing-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 460px) {
+  .pricing-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pricing-button {
+    padding-inline: 1.4rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pricing-details,
+  .pricing-details-inner,
+  .pricing-button-arrow,
+  .pricing-button-icon {
+    transition: none;
+  }
+}
