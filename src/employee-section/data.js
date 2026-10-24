@@ -28,9 +28,9 @@ export const EMPLOYEES = [
   { image: "/images/team-02.webp", role: "Creative Design Manager", focus: { top: 0.095, chin: 0.526, x: 0.5 } },
   { image: "/images/team-03.webp", role: "Marketing Specialist", focus: { top: 0.143, chin: 0.344, x: 0.513 }, headSize: 0.36 },
   { image: "/images/team-04.webp", role: "Creative Developer", focus: { top: 0.345, chin: 0.69, x: 0.505 } },
-  { image: "/images/team-05.webp", role: "3D Artist", focus: { top: 0.319, chin: 0.464, x: 0.487 }, headSize: 0.36 },
+  { image: "/images/team-05.webp", role: "3D Artist", focus: { top: 0.203, chin: 0.414, x: 0.483 }, headSize: 0.36 },
   { image: "/images/team-06.webp", role: "Visual Identity Designer", focus: { top: 0.075, chin: 0.42, x: 0.49 } },
-  { image: "/images/team-07.webp", role: "Visual Content Producer", focus: { top: 0.168, chin: 0.355, x: 0.52 } },
-  { image: "/images/team-08.webp", role: "Video & Motion Editor", focus: { top: 0.194, chin: 0.667, x: 0.51 } },
+  { image: "/images/team-07.webp", role: "Visual Content Producer", focus: { top: 0.168, chin: 0.355, x: 0.52 }, headSize: 0.38 },
+  { image: "/images/team-08.webp", role: "Video & Motion Editor", focus: { top: 0.111, chin: 0.42, x: 0.515 }, headSize: 0.38 },
   { image: "/images/team-09.webp", role: "Social Media Strategist", focus: { top: 0.056, chin: 0.594, x: 0.51 }, extendTop: true },
 ];

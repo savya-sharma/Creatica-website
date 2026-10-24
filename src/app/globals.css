@@ -2914,3 +2914,83 @@ section {
   width: 100%;
   height: 100%;
 }
+
+/* -- entry intro (components/IntroLoader.jsx, lib/introLoader/) ----------
+   A black overlay over everything (straight from the server HTML), a thin
+   white outline that rounds from square to circle with a centred count,
+   then a shader canvas that opens organically from the centre. */
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  background-color: #586a6b;
+  pointer-events: auto;
+}
+
+/* the canvas has drawn its own solid-black first frame: hand over to it */
+.intro.is-revealing {
+  background-color: transparent;
+  pointer-events: none;
+}
+
+/* stacking inside the overlay: canvas (0) under the dial (1) */
+.intro-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.intro-dial {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: clamp(6.5rem, 9vw, 8.5rem);
+  aspect-ratio: 1;
+  background: transparent;
+  /* faded in by IntroLoader.jsx once it is driving the count */
+  opacity: 0;
+}
+
+/* never filled: only its border shows, growing 0 -> 1px with the count */
+.intro-shape {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  /* the stroke starts at the top and runs clockwise (towards the right) */
+  transform: rotate(-90deg);
+}
+
+/* a thin white line drawn round as the count runs (IntroLoader.jsx sets the
+   dash offset: 311 = the circle's length, nothing drawn; 0 = the full circle).
+   stroke-width is in viewBox units: about 1px at the dial's size */
+.intro-shape circle {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-width: 0.85;
+  stroke-dasharray: 311.02;
+  stroke-dashoffset: 311.02;
+}
+
+.intro-count {
+  font-family: "IBM", monospace;
+  font-size: 0.8rem;
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+
+/* quick reveal (INTRO_CONFIG.dialEveryLoad false) and reduced motion: no
+   dial. The dial starts at opacity 0, so nothing flashes before this is set. */
+.intro[data-mode="quick"] .intro-dial,
+.intro[data-mode="reduced"] .intro-dial {
+  display: none;
+}

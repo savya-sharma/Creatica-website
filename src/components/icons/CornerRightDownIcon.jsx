@@ -17,3 +17,4 @@ export default function CornerRightDownIcon({ className, ...props }) {
     </svg>
   );
 }
+  

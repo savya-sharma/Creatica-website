@@ -1,12 +1,16 @@
-// The blob transition's shaders. One full-screen quad; the fragment shader
-// sums a metaball field from up to MAX_POINTS growing blobs (so neighbours
-// merge smoothly), with distances distorted by the noise texture so every
-// outline is irregular and organic.
+// The page transition's shader. One full-screen quad: an organic opening
+// centred on the screen whose radius is driven by the transition. The
+// distance from the centre is distorted by the noise texture, so the
+// boundary is irregular and drifts softly.
 //
-//   cover  (uInvert 0): alpha = the blobs  - they grow over the page
-//   reveal (uInvert 1): alpha = 1 - blobs  - holes grow from fresh points
-
-export const MAX_POINTS = 32;
+//   cover  (uInvert 0): the opening shrinks from past the corners to
+//                       nothing - the cover closes in from the borders
+//   reveal (uInvert 1): the opening grows from the centre back past the
+//                       corners - the cover recedes to the borders
+//
+// The edge is soft (uEdgeSoftness) and carries a fine grain that is
+// strongest right at the boundary and fades with distance from it, so the
+// cover's interior and the open page stay clean.
 
 export const vertexShader = /* glsl */ `
   varying vec2 vUv;
@@ -18,36 +22,53 @@ export const vertexShader = /* glsl */ `
 
 export const fragmentShader = /* glsl */ `
   precision highp float;
-  #define MAX_POINTS ${MAX_POINTS}
-
-  uniform vec4 uPoints[MAX_POINTS]; // x (0..aspect), y (0..1, y down), delay, size
-  uniform int uCount;
   uniform float uProgress;          // 0..1 through this phase
   uniform float uInvert;            // 0 cover, 1 reveal
   uniform sampler2D uNoise;
   uniform float uNoiseIntensity;
   uniform float uNoiseScale;
-  uniform float uBlobScale;
-  uniform float uEdgeSoftness;      // feather width, relative to the blob size
+  uniform float uEdgeSoftness;      // feather width, in screen heights
   uniform float uMoveSpeed;
   uniform float uNoiseSmoothing;    // mip bias: higher = smoother noise
   uniform float uAspect;            // width / height
   uniform float uTime;
   uniform vec3 uColor;
+  uniform vec3 uColor2;            // the second background tone
+  uniform float uTwoTone;           // how far the cover blends into uColor2 (0..1)
   uniform vec3 uRimColor;
+  uniform float uGrain;             // grain strength at the edge (0 = none)
+  uniform float uGrainScale;        // grain size, in CSS pixels
+  uniform float uGrainSpeed;        // how fast the grain drifts (0 = still)
+  uniform float uGrainWidth;        // how far from the edge it reaches, in screen heights
+  uniform float uPixelRatio;
   varying vec2 vUv;
 
-  void main() {
-    vec2 uv = vec2(vUv.x, 1.0 - vUv.y);
-    vec2 p = uv * vec2(uAspect, 1.0);
+  float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+  }
 
-    // The (grayscale) texture stretches or shrinks distances in proportion,
-    // so outlines are irregular at every size but never break into specks.
-    // Reads use a blurrier mip level (uNoiseSmoothing) so the shapes are
-    // smooth and continuous rather than grainy. Movement: two copies of the
-    // broad field drift apart in different directions and slowly cross-fade,
-    // so the edges deform softly in place instead of sliding; uProgress
-    // alone drives the transition.
+  // fine value noise: soft-edged specks, never single hard pixels
+  float grainNoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
+               mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+  }
+
+  void main() {
+    // centred, in screen heights
+    vec2 p = (vUv - 0.5) * vec2(uAspect, 1.0);
+    float r = length(p);
+
+    // The (grayscale) texture stretches or shrinks the distance in
+    // proportion, so the outline is irregular at every size. Reads use a
+    // blurrier mip level (uNoiseSmoothing) so it is smooth rather than
+    // grainy. Movement: two copies of the broad field drift apart in
+    // different directions and slowly cross-fade, so the edge deforms softly
+    // in place instead of sliding; uProgress alone drives the transition.
     vec2 nuv = p * uNoiseScale;
     float t = uTime * uMoveSpeed;
     float broadA = texture2D(uNoise, nuv + vec2(t * 0.020, t * 0.006), uNoiseSmoothing).r;
@@ -55,43 +76,41 @@ export const fragmentShader = /* glsl */ `
     float broad = mix(broadA, broadB, 0.5 + 0.5 * sin(t * 0.35));
     float detail = texture2D(uNoise, nuv * 1.6 + vec2(0.37, 0.61 - t * 0.015), uNoiseSmoothing).r;
     float n = broad * 0.72 + detail * 0.28;
-    float distort = max(1.0 + (n - 0.5) * uNoiseIntensity * 2.5, 0.2);
+    float spread = uNoiseIntensity * 1.25;
+    float rr = r * max(1.0 + (n - 0.5) * 2.0 * spread, 0.2);
 
-    // Deep inside the cover no further blob can change the pixel, so the
-    // loop stops there. The cut-off sits well past the edge, so the field
-    // stays exact across the feathered band (its screen-space slope is
-    // used below).
-    float full = 3.0;
-    float field = 0.0;
-    for (int i = 0; i < MAX_POINTS; i++) {
-      if (i >= uCount || field >= full) break;
-      vec4 pt = uPoints[i]; // xy already in aspect space (controller.js)
-      // each blob starts after its own delay and grows to full size;
-      // one that has not started adds nothing
-      float g = clamp((uProgress - pt.z) / max(1.0 - pt.z, 0.001), 0.0, 1.0);
-      if (g <= 0.0) continue;
-      g = g * g * (3.0 - 2.0 * g);
-      float r = uBlobScale * pt.w * g * (1.0 + 0.9 * g);
-      vec2 d = (p - pt.xy) * distort;
-      field += (r * r) / (dot(d, d) + 1e-5);
-    }
+    // how much of the screen is covered: 0 none .. 1 all, in either phase
+    float c = mix(uProgress, 1.0 - uProgress, uInvert);
 
-    // Feathered edge: s is the relative distance to the outline (for a lone
-    // blob exactly (radius - distance) / radius: 0 on the edge, > 0 inside)
-    // - bounded, smooth everywhere and linear across the edge, so the
-    // smoothstep gives an even, symmetric soft band. uEdgeSoftness sets its
-    // width; fwidth(s) adds at least a pixel of anti-aliasing. Everything
-    // away from the edge stays crisp.
-    float s = 1.0 - inversesqrt(max(field, 1e-6));
-    float feather = uEdgeSoftness + fwidth(s);
-    float m = smoothstep(-feather, feather, s);
-    // the ends are exact: nothing at 0, the whole screen at 1
-    m = mix(m, 1.0, smoothstep(0.93, 1.0, uProgress)) * step(0.0001, uProgress);
+    // the opening's radius: about the farthest corner when uncovered (so the
+    // borders start filling at once), nothing when covered
+    float feather = uEdgeSoftness + fwidth(rr);
+    float corner = length(vec2(uAspect, 1.0) * 0.5);
+    float reach = corner * (1.0 + spread * 0.5) + uEdgeSoftness * 2.0;
+    float radius = (1.0 - c) * reach;
 
-    float alpha = mix(m, 1.0 - m, uInvert);
-    // a faint lighter band where the cover meets the page
+    float alpha = smoothstep(radius - feather, radius + feather, rr);
+
+    // grain along the boundary: fades with distance from the edge (the same
+    // field that draws it), so it follows the contour as it moves. It
+    // drifts slowly rather than re-rolling each frame, so nothing flickers.
+    float band = exp(-pow((rr - radius) / max(uGrainWidth, 1e-4), 2.0));
+    vec2 gp = gl_FragCoord.xy / (uGrainScale * uPixelRatio) + vec2(uTime * uGrainSpeed, -uTime * uGrainSpeed * 0.7);
+    alpha = clamp(alpha + (grainNoise(gp) - 0.5) * 2.0 * uGrain * band, 0.0, 1.0);
+
+    // the ends are exact: nothing at 0 (the farthest corner bits fade in
+    // rather than pop), the whole screen at 1
+    alpha = mix(alpha, 1.0, smoothstep(0.96, 1.0, c)) * smoothstep(0.0, 0.06, c);
+
+    // a faint band where the cover meets the page
     float rim = clamp(alpha * (1.0 - alpha) * 4.0, 0.0, 1.0);
-    vec3 col = mix(uColor, uRimColor, rim * 0.45);
+    // two-tone cover: broad, soft, non-repeating areas of each colour (a
+    // smooth procedural noise - the texture's mirrored tiling would show),
+    // drifting slowly
+    vec2 tp = p * 1.4 + vec2(t * 0.05, -t * 0.035);
+    float tone = grainNoise(tp) * 0.65 + grainNoise(tp * 2.3 + 7.1) * 0.35;
+    vec3 base = mix(uColor, uColor2, smoothstep(0.35, 0.75, tone) * uTwoTone);
+    vec3 col = mix(base, uRimColor, rim * 0.45);
     gl_FragColor = vec4(col * alpha, alpha);
   }
 `;

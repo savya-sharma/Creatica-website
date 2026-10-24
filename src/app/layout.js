@@ -4,7 +4,7 @@ import "lenis/dist/lenis.css";
 import "./globals.css";
 import SmoothScroll from "@/components/SmoothScroll";
 import Navbar from "@/components/Navbar";
-import Preloader from "@/components/Preloader";
+import IntroLoader from "@/components/IntroLoader";
 import Footer from "@/components/Footer";
 import SiteFluid from "@/components/SiteFluid";
 import PageTransition from "@/components/PageTransition";
@@ -29,6 +29,8 @@ export default function RootLayout({ children }) {
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // the intro's before-paint script (below) adds classes to <html>
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
         {/* the browser's own scroll-restoration-on-reload is what causes a
@@ -39,10 +41,16 @@ export default function RootLayout({ children }) {
         <Script id="disable-scroll-restoration" strategy="beforeInteractive">
           {"try{if('scrollRestoration' in history){history.scrollRestoration='manual';}}catch(e){}"}
         </Script>
-        {/* unconditionally part of the server-rendered HTML - see the
-            .preloader rule in globals.css and the comment on Preloader.jsx
-            for why nothing here waits on JS/hydration to cover the Hero */}
-        <Preloader />
+        {/* the entry intro (IntroLoader.jsx): its black overlay is part of
+            the server-rendered HTML, so nothing under it is seen first.
+            Scrolling is locked before first paint. */}
+        <Script id="intro-lock" strategy="beforeInteractive">
+          {"try{document.documentElement.classList.add('preloader-lock');}catch(e){}"}
+        </Script>
+        <noscript>
+          <style>{".intro{display:none}"}</style>
+        </noscript>
+        <IntroLoader />
         <SmoothScroll />
         {/* organic blob transition between in-site pages */}
         <PageTransition />

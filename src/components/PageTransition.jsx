@@ -5,11 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { TRANSITION_CONFIG } from "@/lib/pageTransition/config";
 import { BlobTransition } from "@/lib/pageTransition/controller";
 
-// Organic blob page transition for in-site navigation (root layout):
+// Organic page transition for in-site navigation (root layout):
 //
-//   click a same-site link -> blobs grow over the page -> fully covered ->
-//   navigate -> wait until the new route has rendered and its fonts and
-//   on-screen images are ready -> blobs dissolve away from new points.
+//   click a same-site link -> the cover closes in from the screen borders
+//   to the centre -> fully covered -> navigate -> wait until the new route
+//   has rendered and its fonts and on-screen images are ready -> it opens
+//   from the centre back out to the borders.
 //
 // Links keep working as before: a capturing click listener only calls
 // preventDefault(), which next/link respects (it skips its own navigation)
