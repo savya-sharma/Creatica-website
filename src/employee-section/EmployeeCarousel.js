@@ -326,7 +326,9 @@ export class EmployeeCarousel {
     this.size.height = height;
     if (!width || !height) return;
 
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, width < 768 ? 1.5 : 2);
+    // up to 2x everywhere: on a 3x phone a 1.5x cap drew portraits and
+    // captions at half resolution, then stretched them (the canvas is small)
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
     this.renderer.setPixelRatio(pixelRatio);
     this.renderer.setSize(width, height, false);
     const layout = resolveLayout(this.config, width);

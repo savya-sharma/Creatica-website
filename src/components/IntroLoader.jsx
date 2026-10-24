@@ -111,7 +111,9 @@ export default function IntroLoader() {
       if (cancelled) return;
       markSeen();
       markPreloaderDone();
-      if (!reveal || mode === "reduced") {
+      // no WebGL, reduced motion, or the context was lost (iOS memory
+      // pressure): a plain fade instead of the dissolve
+      if (!reveal || reveal.lost || mode === "reduced") {
         gsap.to(root, {
           opacity: 0,
           duration: (mode === "reduced" ? config.reducedFadeMs : 500) / 1000,

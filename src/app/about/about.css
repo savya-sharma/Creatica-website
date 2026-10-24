@@ -70,6 +70,12 @@
   color: var(--color-surface);
 }
 
+/* the Team heading over the portrait carousel: smaller than the section
+   headings, so the portraits lead */
+.about-heading--team {
+  font-size: clamp(1.25rem, 1rem + 1.1vw, 1.6rem);
+}
+
 .about-copy {
   display: block;
   max-width: 44rem;

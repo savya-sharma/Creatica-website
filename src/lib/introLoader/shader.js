@@ -96,6 +96,19 @@ export const fragmentShader = /* glsl */ `
 
   void main() {
     vec2 uv = (vUv - 0.5) * vec2(uAspect, 1.0);
+
+    // dissolve sweep (see the end); the field term of its level is at most
+    // 0.4, so where even its maximum is behind the sweep the pixel is
+    // already fully revealed - skip all the noise. (Neighbours that do run on
+    // take no derivative that matters here: their alpha is 0 too.)
+    float r = length(uv) / length(vec2(uAspect, 1.0) * 0.5);
+    float s = uRevealSoftness;
+    float sweep = uProgress * (1.0 + 2.0 * s) - s;
+    if (uProgress >= 1.0 || r * 0.6 + 0.4 < sweep - s - 0.01) {
+      gl_FragColor = vec4(0.0);
+      return;
+    }
+
     vec2 p = uv * uScale + vec2(uSeed * 1.37, uSeed * 2.71);
     float t = uTime * uFlowSpeed;
 
@@ -140,9 +153,12 @@ export const fragmentShader = /* glsl */ `
     float seamOff = mf - (uDarkness - k * 0.6);
     float fw = fwidth(mf);
     float seam = 1.0 - smoothstep(uAccentWidth, uAccentWidth + fw, abs(seamOff));
-    float cover = smoothstep(1.0 - uAccentCoverage, 1.0 - uAccentCoverage + 0.12, 0.5 + 0.5 * snoise(wp * 0.7 + 21.0));
-    float jag = 0.6 + 0.4 * snoise(wp * 9.0 + t);
-    col = mix(col, uAccent, clamp(seam * cover * jag * uAccentIntensity, 0.0, 1.0));
+    // the two seam noises only where there is a seam (a thin band)
+    if (seam > 0.0) {
+      float cover = smoothstep(1.0 - uAccentCoverage, 1.0 - uAccentCoverage + 0.12, 0.5 + 0.5 * snoise(wp * 0.7 + 21.0));
+      float jag = 0.6 + 0.4 * snoise(wp * 9.0 + t);
+      col = mix(col, uAccent, clamp(seam * cover * jag * uAccentIntensity, 0.0, 1.0));
+    }
 
     // grain: fine and fixed to the screen, like paper - texture, never static
     vec2 gp = gl_FragCoord.xy / (uGrainScale * uPixelRatio);
@@ -152,10 +168,7 @@ export const fragmentShader = /* glsl */ `
     col = mix(uColor, clamp(col, 0.0, 1.0), uEmerge);
 
     // dissolve: centre first, the boundary following the same field
-    float r = length(uv) / length(vec2(uAspect, 1.0) * 0.5);
     float level = r * 0.6 + clamp(mf, 0.0, 1.0) * 0.4; // mf is bounded, psi is not
-    float s = uRevealSoftness;
-    float sweep = uProgress * (1.0 + 2.0 * s) - s;
     float alpha = smoothstep(sweep - s, sweep + s, level);
     alpha = mix(1.0, alpha, smoothstep(0.0, 0.01, uProgress)) * (1.0 - smoothstep(0.985, 1.0, uProgress));
 

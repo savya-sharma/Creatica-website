@@ -187,6 +187,7 @@ export default function About() {
       </div>
 
       <div className="about-section about-section--people">
+        <h2 className="about-heading about-heading--team">Team</h2>
         <AboutPeopleSlider />
       </div>
 

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import gsap from "gsap";
 import { vertexShader, fragmentShader } from "./shader";
 import { whenIdle } from "@/lib/whenIdle";
+import { renderPixelRatio, FrameWatch } from "@/lib/renderQuality";
 
 // Draws the organic blob transition: one fixed full-screen canvas, hidden
 // (and not rendering) while idle.
@@ -13,6 +14,13 @@ import { whenIdle } from "@/lib/whenIdle";
 //
 // cover() called mid-reveal closes the opening back up from where it is
 // instead of jumping, so rapid navigation never flickers.
+//
+// One layer from cover to reveal: the shader clock only runs while frames
+// are drawn, so the reveal starts from exactly the mask the cover ended on
+// (the wait for the new page doesn't reshape it). Resolution is adaptive
+// (lib/renderQuality.js) and only ever changes between transitions. A lost
+// WebGL context (iOS memory pressure) degrades to plain navigation: every
+// phase completes at once, with nothing drawn, until the context returns.
 export class BlobTransition {
   constructor(config) {
     this.config = config;
@@ -22,8 +30,9 @@ export class BlobTransition {
     document.body.appendChild(this.canvas);
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, alpha: true, premultipliedAlpha: true, antialias: false });
-    // soft organic shapes need no high-DPI detail
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    // soft organic shapes need no high-DPI detail (renderQuality caps it)
+    this.ratio = renderPixelRatio();
+    this.renderer.setPixelRatio(this.ratio);
     this.scene = new THREE.Scene();
     this.camera = new THREE.Camera();
 
@@ -74,6 +83,22 @@ export class BlobTransition {
 
     this.tween = null;
     this.resolveTween = null;
+    this.clock = 0;
+    this.lastFrame = 0;
+    this.watch = new FrameWatch();
+    this.lost = false;
+    this.onLost = (event) => {
+      event.preventDefault(); // allows the browser to restore it
+      this.lost = true;
+      this.interrupt();
+      this.show(false);
+    };
+    this.onRestored = () => {
+      this.lost = false;
+      this.uniforms.uNoise.value.needsUpdate = true; // re-upload
+    };
+    this.canvas.addEventListener("webglcontextlost", this.onLost);
+    this.canvas.addEventListener("webglcontextrestored", this.onRestored);
     // resize events arrive many times a frame while dragging: one resize
     // (and at most one render) per frame
     this.resizeFrame = 0;
@@ -115,8 +140,12 @@ export class BlobTransition {
     this.resizeFrame = 0;
     const w = window.innerWidth;
     const h = window.innerHeight;
+    // a new resolution only between transitions, never mid-way
+    if (!this.visible) this.ratio = renderPixelRatio();
+    this.renderer.setPixelRatio(this.ratio);
     this.renderer.setSize(w, h, false);
     this.uniforms.uAspect.value = w / h;
+    this.uniforms.uPixelRatio.value = this.ratio;
     // a running tween renders on its own next frame
     if (this.visible && !this.tween) this.render();
   }
@@ -133,13 +162,29 @@ export class BlobTransition {
   }
 
   render() {
-    this.uniforms.uTime.value = performance.now() / 1000;
+    if (this.lost) return;
+    const now = performance.now();
+    if (this.lastFrame) {
+      const dt = now - this.lastFrame;
+      this.clock += Math.min(dt, 100);
+      // a device that can't keep up renders lower from the next transition
+      if (this.watch.sample(now)) this.needsRatio = true;
+    }
+    this.lastFrame = now;
+    this.uniforms.uTime.value = this.clock / 1000;
     this.renderer.render(this.scene, this.camera);
   }
 
   // tweens uProgress, rendering each frame; resolves when done or interrupted
   animate(to, duration, ease) {
     this.interrupt();
+    // the clock resumes from here, not from the end of the last phase
+    this.lastFrame = 0;
+    this.watch.reset();
+    if (this.lost) {
+      this.uniforms.uProgress.value = to;
+      return Promise.resolve();
+    }
     return new Promise((resolve) => {
       this.resolveTween = resolve;
       const finish = () => {
@@ -172,13 +217,17 @@ export class BlobTransition {
 
   get covered() {
     const u = this.uniforms;
-    return this.visible && u.uInvert.value === 0 && u.uProgress.value >= 1;
+    return (this.visible || this.lost) && u.uInvert.value === 0 && u.uProgress.value >= 1;
   }
 
   async cover() {
     const u = this.uniforms;
     const { coverDuration, coverEase } = this.config;
-    this.show(true);
+    if (!this.visible && this.needsRatio) {
+      this.needsRatio = false;
+      this.resize(); // picks up the lower resolution while nothing is shown
+    }
+    this.show(!this.lost);
     this.setBlocking(true);
     if (this.covered) return;
     if (u.uInvert.value === 1 && u.uProgress.value > 0) {
@@ -203,7 +252,7 @@ export class BlobTransition {
     const u = this.uniforms;
     u.uInvert.value = 0;
     u.uProgress.value = 1;
-    this.show(true);
+    this.show(!this.lost);
     this.setBlocking(true);
     this.render();
   }
@@ -228,6 +277,8 @@ export class BlobTransition {
     this.cancelWarm();
     cancelAnimationFrame(this.resizeFrame);
     window.removeEventListener("resize", this.onResize);
+    this.canvas.removeEventListener("webglcontextlost", this.onLost);
+    this.canvas.removeEventListener("webglcontextrestored", this.onRestored);
     this.uniforms.uNoise.value.dispose();
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();

@@ -22,7 +22,11 @@ import {
 } from "three";
 import { captionFragmentShader, captionVertexShader } from "./shaders.js";
 
-const PX_PER_UNIT = 640; // canvas resolution: pixels per world unit (a plane is 1 wide)
+// canvas resolution: pixels per world unit (a plane is 1 wide). A plane is
+// drawn up to ~980 device px wide (2560px screen at 2x), so this keeps the
+// text at or above its on-screen size - never upscaled; mipmaps handle the
+// smaller planes.
+const PX_PER_UNIT = 1024;
 const PAD = 0.05; // world units of empty margin the distortion can spill into
 const TRACKING = 0.08; // letter-spacing, in em
 const LINE_HEIGHT = 1.3; // in em

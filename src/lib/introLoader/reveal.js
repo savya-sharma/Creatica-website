@@ -1,11 +1,20 @@
 import * as THREE from "three";
 import gsap from "gsap";
 import { vertexShader, fragmentShader } from "./shader";
+import { renderPixelRatio, FrameWatch } from "@/lib/renderQuality";
 
 // The intro's shader: one full-screen canvas inside the intro overlay, under
 // the dial. It starts flowing as soon as it is created and keeps rendering
 // (on the GSAP ticker, uniforms written in place) for the whole countdown;
 // play() then dissolves it into the hero; dispose() stops it all.
+//
+// Cost control: rendered at most ~60 times a second (a slow flow gains
+// nothing at 120Hz), at an adaptive resolution (lib/renderQuality.js) that
+// may step down only in its first 1.5s, while the field settles in -
+// never later. The flow clock only advances by real frame time, capped, so a
+// hidden tab or a stall never makes the pattern jump. A lost WebGL context
+// (iOS under memory pressure) just stops drawing: IntroLoader then fades the
+// overlay instead of dissolving it.
 export class IntroReveal {
   constructor(container, config) {
     this.config = config;
@@ -14,7 +23,7 @@ export class IntroReveal {
     container.appendChild(this.canvas);
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, alpha: true, premultipliedAlpha: true, antialias: false });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    this.renderer.setPixelRatio(renderPixelRatio());
     this.scene = new THREE.Scene();
     this.camera = new THREE.Camera();
     const color = (hex) => new THREE.Color(hex).convertLinearToSRGB();
@@ -53,30 +62,59 @@ export class IntroReveal {
     this.mesh.frustumCulled = false;
     this.scene.add(this.mesh);
 
-    this.onResize = () => this.resize();
+    // resize events (address bar, rotation) are applied once, on the next frame
+    this.needsResize = true;
+    this.onResize = () => (this.needsResize = true);
     window.addEventListener("resize", this.onResize);
     this.resize();
+    this.lost = false;
+    this.onLost = (event) => {
+      event.preventDefault();
+      this.lost = true;
+      this.onContextLost?.();
+    };
+    this.canvas.addEventListener("webglcontextlost", this.onLost);
     this.renderer.compile(this.scene, this.camera);
     this.ready = Promise.resolve(); // fully procedural: nothing to load
 
     // flowing from the first frame, independent of the countdown; the
     // contours fade in over the plain base colour so nothing pops
-    this.startedAt = performance.now();
+    this.createdAt = performance.now();
+    this.clock = 0;
+    this.lastTick = 0;
+    this.lastRender = 0;
+    this.watch = new FrameWatch();
     gsap.to(this.uniforms.uEmerge, { value: 1, duration: config.emergeDuration, ease: "sine.out" });
     this.tick = () => this.render();
     gsap.ticker.add(this.tick);
   }
 
-  // applied on the next ticker frame (at most one resize per frame)
   resize() {
+    this.needsResize = false;
     const w = window.innerWidth;
     const h = window.innerHeight;
+    const ratio = renderPixelRatio();
+    this.renderer.setPixelRatio(ratio);
     this.renderer.setSize(w, h, false);
     this.uniforms.uAspect.value = w / h;
+    this.uniforms.uPixelRatio.value = ratio;
   }
 
   render() {
-    this.uniforms.uTime.value = (performance.now() - this.startedAt) / 1000;
+    if (this.lost || this.disposed) return;
+    const now = performance.now();
+    // the flow clock: real frame time, capped
+    if (this.lastTick) this.clock += Math.min(now - this.lastTick, 100);
+    this.lastTick = now;
+    // ~60fps is plenty for a slow flow; skip the in-between frames at 120Hz
+    if (this.lastRender && now - this.lastRender < 14) return;
+    this.lastRender = now;
+    // a slow device steps down; the loader itself only applies that in its
+    // first 1.5s (real time) while the field settles in, never visibly later -
+    // a later step still lowers the shared setting for the page transitions
+    if (this.watch.sample(now) && now - this.createdAt < 1500) this.needsResize = true;
+    if (this.needsResize) this.resize();
+    this.uniforms.uTime.value = this.clock / 1000;
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -103,6 +141,7 @@ export class IntroReveal {
     gsap.killTweensOf(this.uniforms.uEmerge);
     this.tween?.kill();
     window.removeEventListener("resize", this.onResize);
+    this.canvas.removeEventListener("webglcontextlost", this.onLost);
     this.mesh.geometry.dispose();
     this.mesh.material.dispose();
     this.renderer.dispose();
