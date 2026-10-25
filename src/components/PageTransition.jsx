@@ -7,8 +7,8 @@ import { BlobTransition } from "@/lib/pageTransition/controller";
 
 // Organic page transition for in-site navigation (root layout):
 //
-//   click a same-site link -> the cover closes in from the screen borders
-//   to the centre -> fully covered -> navigate -> wait until the new route
+//   click a same-site link -> organic blobs grow from set points on the
+//   screen and merge -> fully covered -> navigate -> wait until the new route
 //   has rendered and its fonts and on-screen images are ready -> it opens
 //   from the centre back out to the borders.
 //

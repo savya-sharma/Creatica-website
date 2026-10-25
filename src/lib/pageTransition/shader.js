@@ -1,11 +1,10 @@
-// The page transition's shader. One full-screen quad: an organic opening
-// centred on the screen whose radius is driven by the transition. The
-// distance from the centre is distorted by the noise texture, so the
-// boundary is irregular and drifts softly.
+// The page transition's shader. One full-screen quad. Distances are
+// distorted by the noise texture, so every boundary is irregular and drifts
+// softly.
 //
-//   cover  (uInvert 0): the opening shrinks from past the corners to
-//                       nothing - the cover closes in from the borders
-//   reveal (uInvert 1): the opening grows from the centre back past the
+//   cover  (uInvert 0): organic blobs appear at set points on the screen
+//                       (uPoints), swell and merge until it is covered
+//   reveal (uInvert 1): an opening grows from the centre back past the
 //                       corners - the cover recedes to the borders
 //
 // The edge is soft (uEdgeSoftness) and carries a fine grain that is
@@ -41,6 +40,9 @@ export const fragmentShader = /* glsl */ `
   uniform float uGrainSpeed;        // how fast the grain drifts (0 = still)
   uniform float uGrainWidth;        // how far from the edge it reaches, in screen heights
   uniform float uPixelRatio;
+  uniform vec4 uPoints[8];          // cover blobs: x, y (screen heights, centred), delay, size
+  uniform int uPointCount;
+  uniform float uCoverReach;        // a blob's full-grown radius, in screen heights
   varying vec2 vUv;
 
   float hash(vec2 p) {
@@ -56,6 +58,12 @@ export const fragmentShader = /* glsl */ `
     vec2 u = f * f * (3.0 - 2.0 * f);
     return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x),
                mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+  }
+
+  // smooth minimum: neighbouring blobs merge with a soft neck
+  float smin(float a, float b, float k) {
+    float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+    return mix(b, a, h) - k * h * (1.0 - h);
   }
 
   void main() {
@@ -77,24 +85,41 @@ export const fragmentShader = /* glsl */ `
     float detail = texture2D(uNoise, nuv * 1.6 + vec2(0.37, 0.61 - t * 0.015), uNoiseSmoothing).r;
     float n = broad * 0.72 + detail * 0.28;
     float spread = uNoiseIntensity * 1.25;
-    float rr = r * max(1.0 + (n - 0.5) * 2.0 * spread, 0.2);
+    float distort = max(1.0 + (n - 0.5) * 2.0 * spread, 0.2);
+    float rr = r * distort;
 
     // how much of the screen is covered: 0 none .. 1 all, in either phase
     float c = mix(uProgress, 1.0 - uProgress, uInvert);
 
-    // the opening's radius: about the farthest corner when uncovered (so the
-    // borders start filling at once), nothing when covered
-    float feather = uEdgeSoftness + fwidth(rr);
-    float corner = length(vec2(uAspect, 1.0) * 0.5);
-    float reach = corner * (1.0 + spread * 0.5) + uEdgeSoftness * 2.0;
-    float radius = (1.0 - c) * reach;
-
-    float alpha = smoothstep(radius - feather, radius + feather, rr);
+    // edge: signed distance to the boundary, negative where covered
+    float edge;
+    if (uInvert > 0.5) {
+      // reveal: the opening's radius - past the farthest corner when open,
+      // nothing when covered
+      float corner = length(vec2(uAspect, 1.0) * 0.5);
+      float reach = corner * (1.0 + spread * 0.5) + uEdgeSoftness * 2.0;
+      edge = (1.0 - c) * reach - rr;
+    } else {
+      // cover: blobs grow from their points, each from its own delay, and
+      // merge smoothly into one layer
+      edge = 1e3;
+      for (int i = 0; i < 8; i++) {
+        if (i >= uPointCount) break;
+        vec4 pt = uPoints[i];
+        float g = clamp((c - pt.z) / max(1.0 - pt.z, 0.001), 0.0, 1.0);
+        if (g <= 0.0) continue; // not started yet: nothing there, not even grain
+        g = g * g * (3.0 - 2.0 * g);
+        float d = length(p - pt.xy) * distort - g * uCoverReach * pt.w;
+        edge = smin(edge, d, 0.1);
+      }
+    }
+    float feather = uEdgeSoftness + fwidth(edge);
+    float alpha = smoothstep(-feather, feather, -edge);
 
     // grain along the boundary: fades with distance from the edge (the same
     // field that draws it), so it follows the contour as it moves. It
     // drifts slowly rather than re-rolling each frame, so nothing flickers.
-    float band = exp(-pow((rr - radius) / max(uGrainWidth, 1e-4), 2.0));
+    float band = exp(-pow(edge / max(uGrainWidth, 1e-4), 2.0));
     vec2 gp = gl_FragCoord.xy / (uGrainScale * uPixelRatio) + vec2(uTime * uGrainSpeed, -uTime * uGrainSpeed * 0.7);
     alpha = clamp(alpha + (grainNoise(gp) - 0.5) * 2.0 * uGrain * band, 0.0, 1.0);
 

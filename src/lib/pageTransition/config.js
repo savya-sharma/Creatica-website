@@ -1,7 +1,7 @@
 // Every knob for the organic page transition in one place
-// (controller.js, shader.js, components/PageTransition.jsx): the cover
-// closes in from the screen borders to the centre, the page switches, then
-// it opens from the centre back out to the borders.
+// (controller.js, shader.js, components/PageTransition.jsx): blobs
+// grow from set points over the page, the page switches, then it opens from
+// the centre back out to the borders.
 export const TRANSITION_CONFIG = {
   enabled: true,
 
@@ -20,6 +20,20 @@ export const TRANSITION_CONFIG = {
   twoTone: 1, // how strongly the second tone shows (0 = one flat colour)
   rimColor: "#586a6b", // a faint band along the edge
 
+  // the cover: blobs appear at these points (screen fractions, 0..1 from the
+  // top-left), each after its own delay (share of the cover), swell and merge
+  // until the screen is covered. size scales a blob (1 = coverReach). Max 8.
+  coverPoints: [
+    { x: 0.24, y: 0.3, delay: 0 },
+    { x: 0.72, y: 0.24, delay: 0.1 },
+    { x: 0.5, y: 0.62, delay: 0.04 },
+    { x: 0.86, y: 0.74, delay: 0.18 },
+    { x: 0.12, y: 0.8, delay: 0.14 },
+    { x: 0.46, y: 0.06, delay: 0.24 },
+    { x: 0.64, y: 0.94, delay: 0.26 },
+  ],
+  coverReach: 0.52, // a blob's full-grown radius, in screen heights
+
   edgeSoftness: 0.014, // soft edge width, in screen heights (0 = just anti-aliased)
 
   // fine grain along the moving edge (none in the cover's interior or on the page)
@@ -28,7 +42,7 @@ export const TRANSITION_CONFIG = {
   grainSpeed: 2.0, // how fast it drifts, in grains per second (0 = still)
   grainWidth: 0.024, // how far from the edge it reaches, in screen heights
 
-  coverDuration: 0.6, // seconds, closing in from the borders over the old page
+  coverDuration: 0.6, // seconds, the blobs growing over the old page
   revealDuration: 0.7, // seconds, opening from the centre onto the new page
   coverEase: "sine.inOut", // even pace: soft start, soft finish (power2.in sped up at the end)
   revealEase: "sine.inOut", // same pace as the cover

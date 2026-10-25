@@ -7,7 +7,7 @@ import { renderPixelRatio, FrameWatch } from "@/lib/renderQuality";
 // Draws the organic blob transition: one fixed full-screen canvas, hidden
 // (and not rendering) while idle.
 //
-//   cover()      the cover closes in from the screen borders to the centre
+//   cover()      organic blobs grow from set points until the screen is covered
 //   reveal()     it opens from the centre back out past the borders
 //   setCovered() jump straight to full cover (browser back/forward)
 //   interrupt()  stop the running phase where it is (its promise resolves)
@@ -57,6 +57,9 @@ export class BlobTransition {
       uGrainSpeed: { value: config.grainSpeed },
       uGrainWidth: { value: config.grainWidth },
       uPixelRatio: { value: this.renderer.getPixelRatio() },
+      uPoints: { value: Array.from({ length: 8 }, () => new THREE.Vector4()) },
+      uPointCount: { value: Math.min(8, config.coverPoints.length) },
+      uCoverReach: { value: config.coverReach },
     };
     this.mesh = new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
@@ -145,9 +148,18 @@ export class BlobTransition {
     this.renderer.setPixelRatio(this.ratio);
     this.renderer.setSize(w, h, false);
     this.uniforms.uAspect.value = w / h;
+    this.applyPoints(w / h);
     this.uniforms.uPixelRatio.value = this.ratio;
     // a running tween renders on its own next frame
     if (this.visible && !this.tween) this.render();
+  }
+
+  // the cover's blob points, from screen fractions (0..1 from the top-left)
+  // to the shader's centred, screen-height units
+  applyPoints(aspect) {
+    this.config.coverPoints.slice(0, 8).forEach((pt, i) => {
+      this.uniforms.uPoints.value[i].set((pt.x - 0.5) * aspect, 0.5 - pt.y, pt.delay ?? 0, pt.size ?? 1);
+    });
   }
 
   show(visible) {
