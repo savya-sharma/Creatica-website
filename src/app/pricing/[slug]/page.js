@@ -16,7 +16,7 @@ export async function generateMetadata({ params }) {
   const service = getService(slug);
   if (!service) return {};
   return {
-    title: `${service.name} Pricing | Creatica Crown`,
+    title: `${service.name} Pricing`, // + " | Creatica Crown" (root layout template)
     description: service.summary,
   };
 }
