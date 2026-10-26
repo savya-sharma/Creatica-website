@@ -30,6 +30,23 @@ const frames = (n) =>
 
 // the incoming page is ready: committed and painted, web fonts in, and the
 // images it shows on screen decoded (each capped by readyTimeoutMs)
+// the incoming page has finished its start-up burst (building WebGL scenes,
+// compiling shaders): a few smooth frames in a row, or maxMs at most
+function settled(maxMs) {
+  return new Promise((resolve) => {
+    const start = performance.now();
+    let last = start;
+    let smooth = 0;
+    const step = (now) => {
+      smooth = now - last < 40 ? smooth + 1 : 0;
+      last = now;
+      if (smooth >= 3 || now - start > maxMs) resolve();
+      else requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  });
+}
+
 async function pageReady(config) {
   await frames(2);
   const onScreen = Array.from(document.images).filter((img) => {
@@ -119,6 +136,9 @@ export default function PageTransition() {
         if (state.next || disposed) continue;
 
         await pageReady(config);
+        // let the new page's heavy start-up pass, so the reveal plays on
+        // smooth frames instead of stalling through them
+        await settled(config.settleMaxMs);
         await wait(Math.max(0, config.minCoverMs - (performance.now() - coveredAt)));
         if (state.next || disposed) continue;
 

@@ -187,7 +187,11 @@ export class BlobTransition {
     this.renderer.render(this.scene, this.camera);
   }
 
-  // tweens uProgress, rendering each frame; resolves when done or interrupted
+  // tweens uProgress, rendering each frame; resolves when done or interrupted.
+  // The tween is advanced by frame time capped at ~1/30s, not by the wall
+  // clock: when the incoming page blocks the main thread (building its WebGL
+  // scenes), the animation slows for that moment instead of jumping - a
+  // reveal never completes inside a single stalled frame.
   animate(to, duration, ease) {
     this.interrupt();
     // the clock resumes from here, not from the end of the last phase
@@ -200,6 +204,8 @@ export class BlobTransition {
     return new Promise((resolve) => {
       this.resolveTween = resolve;
       const finish = () => {
+        gsap.ticker.remove(this.step);
+        this.step = null;
         this.tween = null;
         this.resolveTween = null;
         resolve();
@@ -208,14 +214,23 @@ export class BlobTransition {
         value: to,
         duration,
         ease,
+        paused: true,
         onUpdate: () => this.render(),
         onComplete: finish,
       });
+      let elapsed = 0;
+      this.step = (time, deltaMs) => {
+        elapsed += Math.min(deltaMs, 34) / 1000;
+        this.tween?.time(Math.min(elapsed, duration));
+      };
+      gsap.ticker.add(this.step);
     });
   }
 
   interrupt() {
     if (!this.tween) return;
+    if (this.step) gsap.ticker.remove(this.step);
+    this.step = null;
     this.tween.kill();
     this.tween = null;
     const resolve = this.resolveTween;

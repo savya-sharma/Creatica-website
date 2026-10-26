@@ -45,7 +45,7 @@ const SERVICES = [
     delivery: "3–4 Weeks",
   },
   {
-    title: "3D Modelling & VFX",
+    title: "3D Modelling",
     tier: "primary",
     statement:
       "Immersive 3D visuals that bring products and ambitious concepts to life.",
@@ -55,7 +55,7 @@ const SERVICES = [
       "Texturing, Materials & Lighting",
       "Photorealistic Rendering",
       "3D Animation & Product Showcases",
-      "Motion Graphics & VFX",
+      "Motion Graphics",
     ],
     delivery: "10–15 Days",
   },

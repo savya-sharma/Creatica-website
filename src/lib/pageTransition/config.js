@@ -42,12 +42,13 @@ export const TRANSITION_CONFIG = {
   grainSpeed: 2.0, // how fast it drifts, in grains per second (0 = still)
   grainWidth: 0.024, // how far from the edge it reaches, in screen heights
 
-  coverDuration: 0.6, // seconds, the blobs growing over the old page
-  revealDuration: 0.7, // seconds, opening from the centre onto the new page
+  coverDuration: 0.3, // seconds, the blobs growing over the old page
+  revealDuration: 0.3, // seconds, opening from the centre onto the new page
   coverEase: "sine.inOut", // even pace: soft start, soft finish (power2.in sped up at the end)
   revealEase: "sine.inOut", // same pace as the cover
 
   minCoverMs: 300, // the cover holds at least this long once complete
+  settleMaxMs: 900, // longest wait for the new page's start-up work to settle before the reveal
   readyTimeoutMs: 2500, // longest wait for fonts / on-screen images to decode
   maxWaitMs: 8000, // a page that never arrives is revealed anyway after this
 
