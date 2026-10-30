@@ -30,7 +30,7 @@ export default function ConnectPage() {
           {/* eslint-disable-next-line @next/next/no-img-element -- the vector logo, nothing to optimise */}
           <img className="connect-logo" src="/logo/LOGO.svg" alt="Creatica Crown - where every idea turns into art" width="4993" height="1701" />
           <h1 id="connect-title" className="connect-title no-select" data-reveal>
-            We Share Ideas Into Experiences <br className="connect-break" />
+            We Shape Ideas Into Experiences <br className="connect-break" />
             Worth Remembering.
           </h1>
         </section>
