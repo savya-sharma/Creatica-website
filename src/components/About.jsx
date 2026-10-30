@@ -107,7 +107,7 @@ export default function About() {
   return (
     <div className="about-page" ref={pageRef}>
       <div className="about-section">
-        <h1 className="about-title">About Creatica Crown</h1>
+        <h1 className="about-title no-select">About Creatica Crown</h1>
 
         <p className="about-copy">
           Creatica Crown is a multidisciplinary creative and marketing
@@ -129,7 +129,7 @@ export default function About() {
       </div>
 
       <div className="about-section">
-        <h2 className="about-heading">Our Mission</h2>
+        <h2 className="about-heading no-select">Our Mission</h2>
 
         <p className="about-copy">
           Our mission is to empower brands through strategic intelligence,
@@ -147,7 +147,7 @@ export default function About() {
       </div>
 
       <div className="about-section">
-        <h2 className="about-heading">Our Vision</h2>
+        <h2 className="about-heading no-select">Our Vision</h2>
 
         <p className="about-copy">
           Our vision is to establish Creatica Crown as a distinguished
@@ -163,7 +163,7 @@ export default function About() {
       </div>
 
       <div className="about-section">
-        <h2 className="about-heading">Our Capabilities</h2>
+        <h2 className="about-heading no-select">Our Capabilities</h2>
 
         <p className="about-copy">
           We offer an integrated spectrum of creative and digital
@@ -187,7 +187,7 @@ export default function About() {
       </div>
 
       <div className="about-section about-section--people">
-        <h2 className="about-heading about-heading--team">Team</h2>
+        <h2 className="about-heading about-heading--team no-select">Team</h2>
         <AboutPeopleSlider />
       </div>
 

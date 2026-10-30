@@ -251,7 +251,7 @@ export default function Contact() {
 
       <div className="contact-right">
         <div className="contact-right-inner">
-          <h2 className="contact-heading">
+          <h2 className="contact-heading no-select">
             <em>Let&apos;s</em> Build
             <br />
             <span className="contact-arrow">
@@ -364,7 +364,7 @@ export default function Contact() {
             />
 
             <button
-              className="site-footer-button contact-submit btn-glass"
+              className="site-footer-button contact-submit btn-glass no-select"
               type="submit"
               disabled={status === STATUS.SUBMITTING}
               aria-busy={status === STATUS.SUBMITTING || undefined}
@@ -394,7 +394,7 @@ export default function Contact() {
             </div>
           </form>
 
-          <h2 className="contact-alt-heading">Or reach out directly</h2>
+          <h2 className="contact-alt-heading no-select">Or reach out directly</h2>
 
           <FooterInfoGrid />
 

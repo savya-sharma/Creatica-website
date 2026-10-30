@@ -10,6 +10,7 @@ import { SplitText } from "gsap/SplitText";
 import FooterInfoGrid from "./FooterInfoGrid";
 import CornerDownRightIcon from "./icons/CornerDownRightIcon";
 import { FooterFluid } from "@/components/SiteFluid";
+import FestivalSlot from "@/festivals/FestivalSlot";
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
@@ -95,9 +96,10 @@ export default function Footer() {
   return (
     <footer className="site-footer" ref={footerRef}>
       <FooterFluid />
+      <FestivalSlot area="footer" />
       <div className="site-footer-cta">
         <div className="site-footer-cta-main">
-          <h2 className="site-footer-heading">
+          <h2 className="site-footer-heading no-select">
             <em>Let&apos;s</em> Build
             <br />
             <span className="site-footer-arrow">
@@ -108,7 +110,7 @@ export default function Footer() {
             Meaningful
           </h2>
 
-          <Link className="site-footer-button btn-glass" href="/contact">
+          <Link className="site-footer-button btn-glass no-select" href="/contact">
             <RollingText>Start Project</RollingText> <span>&rarr;</span>
           </Link>
         </div>
@@ -126,7 +128,7 @@ export default function Footer() {
 
       <div className="site-footer-bottom">
         <span>&copy; 2025-{new Date().getFullYear()}. All rights reserved</span>
-        <div className="site-footer-bottom-links">
+        <div className="site-footer-bottom-links no-select">
           <Link href="/policy">
             <RollingText>Terms of Services</RollingText>
           </Link>

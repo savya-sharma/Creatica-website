@@ -565,10 +565,13 @@ function Scene({ root, tablet, look, ink }) {
   const inkAlpha = look?.inkAlpha ?? CONFIG.INK_ALPHA;
   const bloom = look?.bloom ?? CONFIG.BLOOM;
   const sheen = look?.sheen ?? CONFIG.SHEEN;
+  // tint: a look may carry its own ink colours (a festival's); else white
+  const colorA = look?.colorA ?? CONFIG.COLOR_A;
+  const colorB = look?.colorB ?? CONFIG.COLOR_B;
   useEffect(() => {
-    fluid.setLook({ inkAlpha, bloom, sheen });
+    fluid.setLook({ inkAlpha, bloom, sheen, colorA, colorB });
     invalidate();
-  }, [fluid, inkAlpha, bloom, sheen, invalidate]);
+  }, [fluid, inkAlpha, bloom, sheen, colorA, colorB, invalidate]);
   const reveal = useMemo(() => createReveal(root, TEXTS.length), [root]);
   const pointer = useRef(null);
   if (pointer.current === null) pointer.current = resetPointer({});
@@ -813,7 +816,7 @@ export const HERO_FLUID_LOOK = { inkAlpha: CONFIG.INK_ALPHA, bloom: CONFIG.BLOOM
 export const DARK_FLUID_LOOK = { ...HERO_FLUID_LOOK, bloom: 0.085, inkAlpha: 0.3 };
 
 // `look` optionally overrides the ink layer's strengths ({ inkAlpha,
-// bloom, sheen }) for another page; the hero itself uses CONFIG as is.
+// bloom, sheen } and optionally colorA / colorB) for another page; the hero itself uses CONFIG as is.
 // `ink={false}` keeps the text/note warping but leaves the ink to a
 // shared layer (the home page draws one across all its sections).
 export default function HeroFluid({ look, ink = true } = {}) {

@@ -1,0 +1,515 @@
+/* /connect (app/connect/page.js) - scoped to .connect-page, so nothing here
+   reaches the rest of the site. The site's own palette and type: surface,
+   dark teal, sage; AppleRegular for the voice, Apple Garamond italic for
+   names, IBM Plex Mono for small labels. */
+
+.connect-page {
+  --connect-gutter: clamp(1.25rem, 4vw, 3rem);
+  --connect-rule: rgba(7, 47, 51, 0.18);
+  position: relative;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* the site gives every <section> a full screen of height, clipped (globals.css,
+   for the home page's full-screen sections): here they take their content's */
+.connect-page section {
+  height: auto;
+  overflow: visible;
+  will-change: auto;
+}
+
+/* the site's mouse fluid (SiteFluid.jsx) runs over this page: the page's
+   surface is under it, the content above it and see-through, so the ink
+   shows across the open space while the text and cards stay crisp (the
+   marquee strip stays under it, like the hero's notes) */
+.connect-reveal {
+  position: relative;
+  z-index: 1;
+}
+
+/* this page opens on its own strip (the marquee), not the site's nav bar -
+   the footer still links back into the site */
+body:has(.connect-page) > nav {
+  display: none;
+}
+
+.connect-page .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* -- the strip across the top --------------------------------------------- */
+
+.connect-marquee {
+  overflow: hidden;
+  background-color: var(--color-text);
+  color: #fff;
+  padding: 0.5rem 0;
+}
+
+.connect-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: connect-marquee 60s linear infinite;
+}
+
+.connect-marquee-group {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.connect-marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding-right: 1.1rem;
+  /* Apple Garamond Italic (the site's "Apply" face), in title case - the
+     italic's lowercase is where it is at its best */
+  font-family: "Apply", serif;
+  font-style: italic;
+  font-size: 1rem;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* the asterisk between the words, a little larger and lifted to sit on the
+   words' middle */
+.connect-marquee-star {
+  flex-shrink: 0;
+  font-size: 1.25em;
+  line-height: 1;
+  translate: 0 0.12em;
+}
+
+@keyframes connect-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .connect-marquee-track {
+    animation: none;
+  }
+}
+
+/* -- the introduction (as approved) --------------------------------------- */
+
+.connect-intro {
+  display: grid;
+  justify-items: center;
+  gap: clamp(2rem, 5vh, 3rem);
+  padding: clamp(3.5rem, 9vh, 5.5rem) var(--connect-gutter) clamp(3.5rem, 9vh, 5.5rem);
+  text-align: center;
+}
+
+.connect-logo {
+  display: block;
+  width: clamp(15rem, 36vw, 27rem);
+  height: auto;
+}
+
+.connect-title {
+  font-family: "AppleRegular", serif;
+  font-weight: 400;
+  font-size: clamp(1.75rem, 1.15rem + 2vw, 2.6rem);
+  line-height: 1.15;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+
+@media (max-width: 640px) {
+  .connect-break {
+    display: none;
+  }
+}
+
+/* -- the two blocks: heading on the left, content on the right ------------ */
+
+.connect-block {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.85fr);
+  gap: clamp(1.75rem, 6vw, 6rem);
+  padding: clamp(3rem, 8vh, 5rem) var(--connect-gutter);
+  border-top: 1px solid var(--connect-rule);
+}
+
+.connect-block--clients {
+  padding-bottom: clamp(4rem, 11vh, 7rem);
+}
+
+.connect-block-head {
+  align-self: start;
+}
+
+.connect-eyebrow {
+  margin-bottom: 1rem;
+  font-family: "IBM", monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.connect-block-title {
+  font-family: "AppleRegular", serif;
+  font-weight: 400;
+  font-size: clamp(2rem, 1.45rem + 1.6vw, 2.8rem);
+  line-height: 1.05;
+}
+
+.connect-block-sub {
+  margin-top: 0.5rem;
+  font-family: "AppleRegular", serif;
+  font-size: 1.05rem;
+  opacity: 0.75;
+}
+
+@media (max-width: 760px) {
+  .connect-block {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* -- the agency's own profiles -------------------------------------------- */
+
+.agency-links {
+  display: grid;
+  gap: 0.625rem;
+  list-style: none;
+}
+
+.agency-link {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.375rem 0.75rem 0.375rem 0.375rem;
+  border-radius: 0.875rem;
+  background-color: var(--color-button);
+  color: var(--color-text);
+  text-decoration: none;
+  transition:
+    background-color 0.35s ease,
+    transform 0.2s ease;
+}
+
+.agency-link-icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  aspect-ratio: 1;
+  border-radius: 0.625rem;
+  background-color: var(--color-text);
+  color: var(--color-button);
+  transition: color 0.35s ease;
+}
+
+.agency-link-icon .social-icon {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.agency-link-text {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.agency-link-label {
+  font-family: "Apply", serif;
+  font-style: italic;
+  font-size: clamp(1.35rem, 1.1rem + 0.6vw, 1.65rem);
+  line-height: 1.1;
+}
+
+.agency-link-handle {
+  overflow: hidden;
+  font-family: "IBM", monospace;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+.agency-link-arrow {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  aspect-ratio: 1;
+  border: 1px solid rgba(7, 47, 51, 0.35);
+  border-radius: 50%;
+  transition:
+    background-color 0.35s ease,
+    color 0.35s ease,
+    border-color 0.35s ease;
+}
+
+.agency-link-arrow .arrow-swap {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+/* the outbound arrow (ArrowSwap.jsx): on hover or focus it flies off up
+   and to the right while a second slides in from behind to take its place;
+   the site's own hover blink for these arrows (globals.css) is off here */
+.arrow-swap {
+  display: inline-grid;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.arrow-swap .arrow-swap-icon {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  vertical-align: top;
+  animation: none !important;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.arrow-swap .arrow-swap-icon--next {
+  transform: translate(-115%, 115%);
+}
+
+@media (hover: hover) {
+  a:hover > * > .arrow-swap .arrow-swap-icon,
+  a:hover > .arrow-swap .arrow-swap-icon {
+    transform: translate(115%, -115%);
+  }
+
+  a:hover > * > .arrow-swap .arrow-swap-icon--next,
+  a:hover > .arrow-swap .arrow-swap-icon--next {
+    transform: translate(0, 0);
+  }
+}
+
+a:focus-visible > * > .arrow-swap .arrow-swap-icon,
+a:focus-visible > .arrow-swap .arrow-swap-icon {
+  transform: translate(115%, -115%);
+}
+
+a:focus-visible > * > .arrow-swap .arrow-swap-icon--next,
+a:focus-visible > .arrow-swap .arrow-swap-icon--next {
+  transform: translate(0, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrow-swap .arrow-swap-icon {
+    transition: none;
+  }
+}
+
+.agency-link:active {
+  transform: scale(0.985);
+}
+
+.agency-link:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .agency-link:hover {
+    background-color: #a8b0a3;
+  }
+
+  .agency-link:hover .agency-link-icon {
+    color: var(--color-surface);
+  }
+
+  .agency-link:hover .agency-link-arrow {
+    border-color: var(--color-text);
+    background-color: var(--color-text);
+    color: var(--color-surface);
+  }
+}
+
+/* -- the client directory: an editorial index ----------------------------- */
+
+.client-directory {
+  list-style: none;
+  border-top: 1px solid var(--color-text);
+}
+
+.client-item {
+  border-bottom: 1px solid var(--connect-rule);
+  transition: background-color 0.45s ease;
+}
+
+.client-item.is-open {
+  background-color: rgba(153, 163, 149, 0.28);
+}
+
+.client-heading {
+  font: inherit;
+}
+
+.client-trigger {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: clamp(1.1rem, 2.6vh, 1.5rem) 0.75rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.client-trigger:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: -2px;
+}
+
+.client-index {
+  align-self: start;
+  padding-top: 0.6em;
+  font-family: "IBM", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  opacity: 0.55;
+}
+
+.client-name {
+  font-family: "Apply", serif;
+  font-style: italic;
+  font-size: clamp(1.9rem, 1.25rem + 2.4vw, 3.1rem);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* a plus in a ring, turning to a cross when open */
+.client-toggle {
+  position: relative;
+  width: 2.5rem;
+  aspect-ratio: 1;
+  border: 1px solid rgba(7, 47, 51, 0.35);
+  border-radius: 50%;
+  transition:
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 0.35s ease,
+    border-color 0.35s ease;
+}
+
+.client-toggle::before,
+.client-toggle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0.85rem;
+  height: 1.5px;
+  background-color: currentColor;
+  translate: -50% -50%;
+}
+
+.client-toggle::after {
+  rotate: 90deg;
+}
+
+.client-item.is-open .client-toggle {
+  transform: rotate(45deg);
+  border-color: var(--color-text);
+  background-color: var(--color-text);
+  color: var(--color-surface);
+}
+
+@media (hover: hover) {
+  .client-trigger:hover .client-name {
+    transform: translateX(0.4rem);
+  }
+
+  .client-trigger:hover .client-toggle {
+    border-color: var(--color-text);
+  }
+}
+
+/* the profiles, under the client's name */
+.client-panel {
+  height: 0;
+  overflow: hidden;
+}
+
+.client-panel-inner {
+  padding: 0 0.75rem 1.5rem calc(0.75rem + 2.75rem + 1rem);
+}
+
+.client-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+}
+
+.client-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.65rem 0.95rem;
+  border: 1px solid rgba(7, 47, 51, 0.3);
+  border-radius: 999px;
+  color: var(--color-text);
+  font-family: "IBM", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.client-link .social-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.client-link .arrow-swap {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.client-link:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .client-link:hover {
+    border-color: var(--color-text);
+    background-color: var(--color-text);
+    color: var(--color-surface);
+  }
+}
+
+.client-links-empty {
+  font-family: "IBM", monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+@media (max-width: 760px) {
+  .client-trigger {
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    padding-inline: 0.5rem;
+  }
+
+  .client-panel-inner {
+    padding-left: calc(0.5rem + 2rem + 0.75rem);
+  }
+}

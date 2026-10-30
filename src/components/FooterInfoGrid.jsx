@@ -38,10 +38,10 @@ export default function FooterInfoGrid() {
   return (
     <div className="site-footer-grid">
       <div className="site-footer-col">
-        <h3>
+        <h3 className="no-select">
           Social <CornerRightDownIcon />
         </h3>
-        <ul>
+        <ul className="no-select">
           <li>
             <a
               href="https://x.com/CreaticaCrown"
@@ -79,10 +79,10 @@ export default function FooterInfoGrid() {
       </div>
 
       <div className="site-footer-col">
-        <h3>
+        <h3 className="no-select">
           Pages <CornerRightDownIcon />
         </h3>
-        <ul>
+        <ul className="no-select">
           <li>
             <Link href="/" {...scrambleHoverProps}>
               [01] <span className="scramble-target">Home</span>
@@ -107,7 +107,7 @@ export default function FooterInfoGrid() {
       </div>
 
       <div className="site-footer-col">
-        <h3>
+        <h3 className="no-select">
           Location <CornerRightDownIcon />
         </h3>
         <p>
@@ -118,7 +118,7 @@ export default function FooterInfoGrid() {
       </div>
 
       <div className="site-footer-col">
-        <h3>
+        <h3 className="no-select">
           E-mail <CornerRightDownIcon />
         </h3>
         <p className="site-footer-email" aria-live="polite">

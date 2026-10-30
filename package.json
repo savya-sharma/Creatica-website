@@ -9,7 +9,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --no-warnings --test \"src/**/*.test.mjs\""
   },
   "dependencies": {
     "@react-three/fiber": "^9.8.1",

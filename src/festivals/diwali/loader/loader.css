@@ -1,0 +1,17 @@
+/* The Diwali entry loader (DiwaliIntro.js): IntroLoader.jsx marks its overlay
+   data-scene="diwali" only while it runs this scene, so with no festival
+   none of this applies. The shader draws the count's ring itself (round the
+   rangoli), so the dial's own outline steps aside; the count sits in gold
+   just below the rangoli (its ring's radius: 0.68 * 0.96 of half the
+   shorter side, as in shader.js). */
+
+.intro[data-scene="diwali"] .intro-shape {
+  display: none;
+}
+
+.intro[data-scene="diwali"] .intro-count {
+  color: #f2d27a;
+  letter-spacing: 0.22em;
+  text-shadow: 0 0 0.9rem rgba(255, 176, 80, 0.45);
+  translate: 0 calc(min(100vw, 100vh) * 0.3264 + 2.2rem);
+}

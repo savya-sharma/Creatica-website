@@ -673,14 +673,14 @@ export default function ManifestoMonitor() {
     <>
       <div className="manifesto-monitor" ref={containerRef} />
       <div className="manifesto-brands">
-        <h2 className="manifesto-statement">
+        <h2 className="manifesto-statement no-select">
           Brands we’ve helped <em>move forward.</em>
         </h2>
         <ul className="manifesto-projects" ref={listRef}>
           {MONITOR_PROJECTS.map((project) => (
             <li
               key={project.name}
-              className="btn-glass"
+              className="btn-glass no-select"
               data-img={project.image}
               // focusable so keyboard users reach the same "preview this
               // brand on the monitor" feedback a mouse hover gives (see the

@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { TRANSITION_CONFIG } from "@/lib/pageTransition/config";
+import { withFestival } from "@/festivals/theme";
+import { onFestivalChange } from "@/festivals/useFestival";
 import { BlobTransition } from "@/lib/pageTransition/controller";
 
 // Organic page transition for in-site navigation (root layout):
@@ -75,7 +77,8 @@ export default function PageTransition() {
   }, [pathname]);
 
   useEffect(() => {
-    const config = TRANSITION_CONFIG;
+    // an active festival may recolour it (festivals/registry.js theme)
+    const config = withFestival(TRANSITION_CONFIG, "transition");
     if (!config.enabled) return undefined;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
 
@@ -87,6 +90,10 @@ export default function PageTransition() {
     }
     // development only: lets the transition be inspected from the console
     if (process.env.NODE_ENV !== "production") window.__pageTransition = ctrl;
+
+    // a festival switching on or off while the site is open recolours the
+    // cover (back to exactly TRANSITION_CONFIG's colours when none is active)
+    const stopFestival = onFestivalChange(() => ctrl.setColors(withFestival(TRANSITION_CONFIG, "transition")));
 
     const state = {
       pathname: normalize(window.location.pathname),
@@ -182,6 +189,7 @@ export default function PageTransition() {
 
     return () => {
       disposed = true;
+      stopFestival();
       document.removeEventListener("click", onClick, true);
       window.removeEventListener("popstate", onPopState);
       state.waiters.forEach((check) => check());

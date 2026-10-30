@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import HeroFluid, { DARK_FLUID_LOOK, HERO_FLUID_LOOK } from "./HeroFluid";
+import { useFestival } from "@/festivals/useFestival";
+import { festivalTheme } from "@/festivals/theme";
 
 // The hero's mouse fluid, shared site-wide (layout.js): ONE layer behind a
 // page's content and its footer together, so ink flows from the page into
@@ -17,6 +19,7 @@ const PAGE_LOOKS = {
   "/": HERO_FLUID_LOOK,
   "/about": DARK_FLUID_LOOK,
   "/contact": HERO_FLUID_LOOK,
+  "/connect": HERO_FLUID_LOOK,
   "/pricing": HERO_FLUID_LOOK,
 };
 
@@ -35,6 +38,14 @@ const mixLook = (a, b, t) => ({
   bloom: lerp(a.bloom, b.bloom, t),
   sheen: lerp(a.sheen, b.sheen, t),
 });
+
+// an active festival's ink colours over a look (festivals/registry.js theme);
+// with none, the look is unchanged (white ink)
+function useFestivalInk(look) {
+  const { festival } = useFestival();
+  const ink = festivalTheme(festival, "cursorInk");
+  return ink ? { ...look, ...ink } : look;
+}
 
 // Share of the viewport the (dark) footer covers, in 5% steps.
 function useFooterShare(enabled) {
@@ -76,12 +87,13 @@ export default function SiteFluid() {
   const pathname = usePathname();
   const base = lookFor(pathname);
   const footerShare = useFooterShare(Boolean(base));
+  const look = useFestivalInk(base ? mixLook(base, DARK_FLUID_LOOK, footerShare) : DARK_FLUID_LOOK);
   if (!base) return null;
 
   return (
     <div className="site-fluid" aria-hidden="true">
       <div className="site-fluid-viewport">
-        <HeroFluid look={mixLook(base, DARK_FLUID_LOOK, footerShare)} />
+        <HeroFluid look={look} />
       </div>
     </div>
   );
@@ -92,12 +104,13 @@ export default function SiteFluid() {
 // footer.
 export function FooterFluid() {
   const pathname = usePathname();
+  const look = useFestivalInk(DARK_FLUID_LOOK);
   if (hasPageFluid(pathname)) return null;
 
   return (
     <div className="footer-fluid" aria-hidden="true">
       <div className="footer-fluid-viewport">
-        <HeroFluid look={DARK_FLUID_LOOK} />
+        <HeroFluid look={look} />
       </div>
     </div>
   );

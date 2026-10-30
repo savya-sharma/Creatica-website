@@ -162,6 +162,18 @@ export class BlobTransition {
     });
   }
 
+  // the cover's colours - an active festival's theme or the defaults
+  // (PageTransition.jsx re-applies them whenever the festival changes)
+  setColors({ color, color2, twoTone, rimColor }) {
+    const u = this.uniforms;
+    const srgb = (hex) => new THREE.Color(hex).convertLinearToSRGB();
+    u.uColor.value.copy(srgb(color));
+    u.uColor2.value.copy(srgb(color2));
+    u.uTwoTone.value = twoTone;
+    u.uRimColor.value.copy(srgb(rimColor));
+    if (this.visible && !this.tween) this.render();
+  }
+
   show(visible) {
     this.visible = visible;
     this.canvas.style.display = visible ? "block" : "none";

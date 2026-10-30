@@ -1,0 +1,327 @@
+/* Diwali composition (DiwaliHero.jsx, DiwaliFooter.jsx). Mounted only while
+   Diwali is active; every rule is scoped to its own classes, so nothing here
+   touches the default site. Decoration only: under the text, never
+   interactive, hidden from assistive tech. */
+
+/* -- hero ------------------------------------------------------------------ */
+
+.diwali-hero {
+  /* set by DiwaliHero.jsx from a measurement: the mandala's size and centre,
+     and where the diyas (and the embers over them) sit */
+  --rangoli: 0px;
+  /* the eave's size and place, shared by the eave, its corner of flowers
+     and the light round its lanterns */
+  --eave-w: clamp(13rem, 21vw, 20rem);
+  --eave-top: clamp(4.75rem, 9.5vh, 5.5rem);
+  position: absolute;
+  inset: 0;
+  z-index: 0; /* with the notes and the fluid; under .hero-content (1) */
+  /* the hero's sides crop what enters from outside them; downward the
+     mandala may reach a little over the section below (DiwaliHero.jsx) */
+  overflow-x: clip;
+  overflow-y: visible;
+  pointer-events: none;
+}
+
+/* while Diwali is mounted, the hero lets that out too (sections clip with
+   overflow: hidden, globals.css) - still clipping its sides, so nothing
+   widens the page. The section below is transparent on the home page, so
+   the mandala shows over its top as it is; the hero keeps its own stacking
+   (no z-index), so the site's mouse ink (SiteFluid, the last layer at
+   z-index 0) still flows over the mandala, as over the rest of the hero */
+.hero:has(> .diwali-hero) {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.diwali-sticker {
+  position: absolute;
+  display: block;
+  height: auto;
+  user-select: none;
+}
+
+/* the mandala: its centre just in from the right edge, so the edge crops a
+   slice of it - the rest of the circle always inside the hero */
+.diwali-rangoli {
+  width: var(--rangoli);
+  aspect-ratio: 1;
+  left: calc(var(--rangoli-x) - var(--rangoli) / 2);
+  top: calc(var(--rangoli-y) - var(--rangoli) / 2);
+}
+
+.diwali-hero[data-rangoli="off"] .diwali-rangoli {
+  display: none;
+}
+
+/* marigold clusters, each its own composition in its own wrapper, entering
+   from an edge - upright and still once in (the wrapper fades in, motion.js);
+   the art fills the wrapper at its own proportions, and the viewport's edge
+   crops the part outside it */
+.diwali-bunch {
+  position: absolute;
+  width: var(--bunch);
+  aspect-ratio: var(--bunch-aspect);
+}
+
+.diwali-bunch .diwali-bunch-art {
+  position: relative;
+  width: 100%;
+}
+
+/* the right-edge trail is the left-edge one mirrored */
+.diwali-bunch--flip .diwali-bunch-art {
+  scale: -1 1;
+}
+
+/* a row under the eave's lattice, turning down the left edge (sized to the
+   screen, like every cluster): its top tucked under the eave, its column of
+   blooms half past the edge */
+.diwali-bunch--corner {
+  --bunch: clamp(4.25rem, 7.5vw, 7rem);
+  --bunch-aspect: 900 / 1100;
+  top: calc(var(--eave-top) + var(--eave-w) * 0.505 - var(--bunch) * 0.1);
+  left: calc(var(--bunch) * -0.14);
+}
+
+/* the tall trail beside the lead word "where": its narrow top beside the
+   word, the left edge cropping its column of blooms */
+.diwali-bunch--where {
+  --bunch: clamp(3.75rem, 5.6vw, 5.25rem);
+  --bunch-aspect: 1 / 2;
+  /* the content is anchored to the hero's bottom, so the word ends about
+     12rem above it at every size; the trail's first quarter (its narrow
+     top, half its width tall) rises beside the word, the full part below */
+  bottom: calc(11.5rem - var(--bunch) * 1.5);
+  left: calc(var(--bunch) * -0.3);
+}
+
+/* the trail mirrored, entering from the right edge under the menu button */
+.diwali-bunch--menu {
+  --bunch: clamp(3.25rem, 4.8vw, 4.75rem);
+  --bunch-aspect: 1 / 2;
+  top: clamp(4.75rem, 9vh, 5.5rem); /* clear of the nav bar */
+  right: calc(var(--bunch) * -0.3);
+}
+
+/* the eave: from the upper-left edge, under the logo, the lanterns hanging
+   from its underside (their hooks from the manifest, set inline) */
+.diwali-eave-group {
+  position: absolute;
+  top: var(--eave-top);
+  left: calc(var(--eave-w) * -0.1);
+  width: var(--eave-w);
+}
+
+/* the lanterns' light in the air (bloom.js): a canvas around the eave and
+   the lanterns hanging from it, the light fading out well inside its edges -
+   light only, it never darkens the page; without WebGL, a still, soft warm
+   stand-in */
+.diwali-bloom {
+  position: absolute;
+  left: calc(var(--eave-w) * -0.45);
+  top: calc(var(--eave-top) - var(--eave-w) * 0.15);
+  width: calc(var(--eave-w) * 1.9);
+  height: calc(var(--eave-w) * 1.75);
+  pointer-events: none;
+}
+
+.diwali-bloom[data-fallback] {
+  background: radial-gradient(circle at 54% 55%, rgba(255, 200, 125, 0.45), rgba(255, 175, 85, 0.12) 14%, rgba(255, 170, 80, 0) 28%);
+}
+
+/* a lantern's light, inside its glass: over the lit panels only (the art's
+   glass spans 23.8-76.2% across, 42.9-62% down), brightest where the paper
+   is, blended so it lights the paper rather than covering it; motion.js
+   makes it breathe like a flame */
+.diwali-lantern-glow {
+  position: absolute;
+  left: 23.8%;
+  right: 23.8%;
+  top: 42.9%;
+  bottom: 38%;
+  background: radial-gradient(ellipse 62% 58% at 50% 42%, rgba(255, 251, 232, 0.85), rgba(255, 214, 140, 0.5) 38%, rgba(255, 170, 70, 0) 78%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.diwali-eave-group .diwali-eave {
+  position: relative;
+  width: 100%;
+}
+
+.diwali-hanging {
+  position: absolute;
+  translate: -50% -4%; /* centred on its hook, the rod's top tucked under the roof */
+}
+
+.diwali-hanging .diwali-hanging-art {
+  position: relative;
+  width: 100%;
+}
+
+.diwali-hanging--large {
+  width: calc(var(--eave-w) * 0.72 / 2.5);
+}
+
+.diwali-hanging--small {
+  width: calc(var(--eave-w) * 0.36 / 2.5);
+}
+
+/* a piece that would touch the text or the notes at this size */
+.diwali-hero [data-clear="off"] {
+  display: none;
+}
+
+/* the two diyas, just after the headline's line (DiwaliHero.jsx) */
+.diwali-diyas {
+  --diya-h: 2.5rem;
+  position: absolute;
+  left: var(--diyas-x, 0);
+  top: var(--diyas-y, 0);
+  width: max-content;
+  display: flex;
+  align-items: flex-end;
+  gap: calc(var(--diya-h) * 0.12);
+}
+
+.diwali-diyas[data-placed="off"] {
+  display: none;
+}
+
+/* a soft pool of warm light the diyas sit in (CSS only) */
+.diwali-diyas::before {
+  content: "";
+  position: absolute;
+  inset: -60% -45% -30%;
+  background: radial-gradient(closest-side, rgba(255, 190, 90, 0.22), rgba(255, 170, 60, 0) 100%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* the embers' canvas: over the diyas, with room above it */
+.diwali-embers {
+  position: absolute;
+  left: var(--embers-x, 0);
+  top: var(--embers-y, 0);
+  width: var(--embers-w, 0);
+  height: var(--embers-h, 0);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* each diya: the lamp art (with its painted flame) fills its box */
+.diwali-diya {
+  position: relative;
+  display: block;
+  width: auto;
+  aspect-ratio: 4 / 3;
+}
+
+.diwali-diya .diwali-diya-art {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* the warm light around each painted flame - code, not art: a soft glow at
+   the flame (left/top from the manifest) that motion.js makes breathe */
+.diwali-flame {
+  position: absolute;
+  width: 34%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 214, 128, 0.55), rgba(255, 180, 80, 0.18) 55%, rgba(255, 170, 60, 0) 100%);
+  pointer-events: none;
+}
+
+.diwali-diya--ornate {
+  height: var(--diya-h);
+}
+
+.diwali-diya--plain {
+  height: calc(var(--diya-h) * 0.86);
+}
+
+/* smaller screens (tablets and phones): the flowers beside the lanterns
+   (the corner under the eave) are left out */
+@media (max-width: 1023px) {
+  .diwali-hero .diwali-bunch--corner {
+    display: none;
+  }
+}
+
+/* phones: no room for the eave between the logo and the first note. The
+   headline runs from the left edge, so the trail beside "where" moves up
+   into the open band at the left between the first note and the eyebrow
+   text, sized to the band (short phones get a smaller trail, never none).
+   The first note's top is the notes' own clamp(7rem, 15svh, 8.5rem) and
+   its card ~122px tall; the eyebrow starts ~247px above the hero's bottom. */
+@media (max-width: 640px) {
+  .diwali-hero {
+    --note-top: clamp(7rem, 15svh, 8.5rem);
+    --band: calc(100svh - var(--note-top) - 385px);
+  }
+
+  .diwali-hero .diwali-eave-group,
+  .diwali-hero .diwali-bloom {
+    display: none;
+  }
+
+  .diwali-bunch--where {
+    --bunch: min(3.75rem, (var(--band) - 24px) / 2);
+    top: calc(var(--note-top) + 138px);
+    bottom: auto;
+  }
+}
+
+/* -- footer ----------------------------------------------------------------- */
+
+/* the footer lifts its children above its fluid with
+   `.site-footer > :not(.footer-fluid) { position: relative }` (globals.css);
+   this selector outranks that, so the lantern hangs from the footer's top */
+.site-footer > div.diwali-footer {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* the hanging lantern, its rod running off the footer's top edge */
+.diwali-footer-lantern {
+  top: 0;
+  right: 8%;
+  width: clamp(2.75rem, 4.5vw, 4.75rem);
+  aspect-ratio: 1 / 2.5;
+}
+
+@media (max-width: 900px) {
+  .diwali-footer-lantern {
+    display: none;
+  }
+}
+
+/* -- layout guides (development only: ?festivalGuides=1) --------------------
+   Dashed boxes where artwork that hasn't been supplied would go. Not art. */
+
+.diwali-guide {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border: 1px dashed #e34234;
+  background: rgba(227, 66, 52, 0.07);
+  color: #b3261e;
+  font: 600 9px/1.3 ui-monospace, monospace;
+  letter-spacing: 0.04em;
+  text-align: center;
+  overflow: hidden;
+}
+
+.diwali-guide span {
+  padding: 0.25rem;
+}
+
+.diwali-rangoli.diwali-guide {
+  border-radius: 50%;
+}

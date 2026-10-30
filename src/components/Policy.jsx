@@ -599,7 +599,7 @@ export default function Policy({ initialTab = "terms" }) {
 
       <div className="policy-content" key={activeTab}>
         <div className="policy-header">
-          <h1 className="policy-title">{policy.title}</h1>
+          <h1 className="policy-title no-select">{policy.title}</h1>
 
           <p className="policy-meta">
             <strong>Effective Date:</strong> {policy.effectiveDate}

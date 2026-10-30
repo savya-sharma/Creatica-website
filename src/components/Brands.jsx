@@ -187,7 +187,7 @@ export default function Brands() {
       <ul className="work-list" ref={listRef}>
         {projects.map((p, i) => (
           <li className="work-item" data-index={i} key={p.name}>
-            <span className="work-item__index">{String(i + 1).padStart(2, "0")}</span>
+            <span className="work-item__index no-select">{String(i + 1).padStart(2, "0")}</span>
             <span className="work-item__name">{p.name}</span>
             <span className="work-item__direction">{p.direction}</span>
             <a className="work-item__demo" href={p.demo}>

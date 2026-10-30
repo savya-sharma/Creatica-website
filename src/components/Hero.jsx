@@ -6,6 +6,7 @@ import BrandObserver from "./BrandObserver";
 import IdeaInMotion from "./IdeaInMotion";
 import { onLenisReady } from "@/lib/lenis";
 import { onPreloaderDone } from "@/lib/preloader";
+import FestivalSlot from "@/festivals/FestivalSlot";
 
 // Hand-drawn line doodles around the sticky notes, each tied to a note's
 // words. Every stroke uses pathLength="1" so the CSS can draw it in once
@@ -45,8 +46,11 @@ export default function Hero({ fluidInk = true } = {}) {
 
   return (
     <section className="hero" ref={heroRef}>
+      {/* festival decoration (none outside a festival): first, so it sits
+          behind the notes, the ink and the headline */}
+      <FestivalSlot area="hero" />
       {/* paper notes: before HeroFluid so the fluid's ink drifts over them */}
-      <div className="hero-note hero-note--ivory">
+      <div className="hero-note hero-note--ivory no-select">
         <div className="hero-note-card">
           <div className="hero-note-paper">
             <p className="hero-note-text">
@@ -81,7 +85,7 @@ export default function Hero({ fluidInk = true } = {}) {
         <IdeaInMotion />
       </div>
 
-      <div className="hero-note hero-note--lavender">
+      <div className="hero-note hero-note--lavender no-select">
         <div className="hero-note-card">
           <div className="hero-note-paper">
             <p className="hero-note-text">A brand is more than what people see.</p>
@@ -109,11 +113,11 @@ export default function Hero({ fluidInk = true } = {}) {
             We give ambition a visual language — distinctive, meaningful, and
             made to last.
           </p>
-          <span className="hero-heading-lead">where</span>
+          <span className="hero-heading-lead no-select">where</span>
         </div>
 
         <div className="hero-heading-row">
-          <h1 className="hero-heading">
+          <h1 className="hero-heading no-select">
             We shape ideas
             <br />
             into experiences

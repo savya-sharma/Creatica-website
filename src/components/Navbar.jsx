@@ -339,7 +339,7 @@ export default function Navbar() {
   }
 
   return (
-    <nav className={isDark ? "nav-dark" : ""} ref={navRef}>
+    <nav className={isDark ? "nav-dark no-select" : "no-select"} ref={navRef}>
       <div className="nav-logo">
         <Link
           href="/"

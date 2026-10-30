@@ -69,7 +69,7 @@ export default function RollingText({ children, as: Tag = "span", className = ""
   }, []);
 
   return (
-    <Tag className={`rolling-text${className ? ` ${className}` : ""}`}>
+    <Tag className={`rolling-text no-select${className ? ` ${className}` : ""}`}>
       <span className="rolling-text-track" ref={trackRef}>
         <span className="rolling-text-layer">{children}</span>
         <span className="rolling-text-layer" aria-hidden="true">

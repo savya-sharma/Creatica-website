@@ -3,6 +3,8 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { INTRO_CONFIG } from "@/lib/introLoader/config";
+import { withFestival } from "@/festivals/theme";
+import { LOADER_SCENES } from "@/festivals/loaderScenes";
 import { IntroReveal } from "@/lib/introLoader/reveal";
 import { trackReadiness } from "@/lib/introLoader/readiness";
 import { markPreloaderDone } from "@/lib/preloader";
@@ -36,7 +38,11 @@ export default function IntroLoader() {
   useLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return undefined;
-    const config = INTRO_CONFIG;
+    // an active festival may recolour it, or bring its own scene
+    // (festivals/registry.js theme, festivals/loaderScenes.js)
+    const config = withFestival(INTRO_CONFIG, "loader");
+    const Scene = LOADER_SCENES[config.scene] ?? IntroReveal;
+    if (Scene !== IntroReveal) root.dataset.scene = config.scene;
     const html = document.documentElement;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let seen = false;
@@ -72,10 +78,12 @@ export default function IntroLoader() {
     let reveal = null;
     if (mode !== "reduced") {
       try {
-        reveal = new IntroReveal(root, config);
+        reveal = new Scene(root, config);
       } catch {
         reveal = null; // no WebGL: the overlay fades instead
       }
+      // a scene that shows the count: complete when there is no dial
+      if (mode !== "first") reveal?.setLoad?.(1);
     }
 
     // -- readiness ---------------------------------------------------------
@@ -173,6 +181,7 @@ export default function IntroLoader() {
           pausedUntil = now + config.pauseMs;
         }
         count.textContent = `${Math.round(shown)}%`;
+        reveal?.setLoad?.(shown / 100); // a scene that draws with the count
         // the outline draws with the count: a line from the top, clockwise
         // (towards the right) all the way back to the top at 100
         shape.style.strokeDashoffset = (CIRCLE * (1 - shown / 100)).toFixed(2);

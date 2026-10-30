@@ -43,6 +43,28 @@ body {
   font-family: "AppleRegular", Arial, Helvetica, sans-serif;
 }
 
+/* selected text, site-wide: the brand sage with white text. Two rules - a
+   selector list mixing the prefixed and unprefixed forms would be dropped
+   whole by a browser that knows only one of them */
+::-moz-selection {
+  background-color: #99a395;
+  color: #fff;
+}
+
+::selection {
+  background-color: #99a395;
+  color: #fff;
+}
+
+/* text that is decoration or a control, not content to copy - display and
+   animated headings, marquees, navigation, buttons, labels - stays out of a
+   drag-selection. Applied element by element; reading text (paragraphs,
+   descriptions, contact details, form fields) stays selectable */
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* the scrollbar is hidden purely visually, on the elements Lenis actually
    scrolls (html/body - no wrapper/content option is passed to it) - none of
    this touches overflow, so native/keyboard/touch scrolling, page height

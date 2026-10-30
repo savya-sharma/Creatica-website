@@ -397,7 +397,7 @@ export default function Services() {
           pins while the list scrolls past (decorative - every row carries
           its own number) */}
       <aside className="services-aside">
-        <p className="services-eyebrow" data-fade>
+        <p className="services-eyebrow no-select" data-fade>
           <span>Services</span>
           <span className="services-eyebrow-slash" aria-hidden="true">/</span>
           <span>Capabilities</span>
@@ -418,7 +418,7 @@ export default function Services() {
       </aside>
 
       <header className="services-intro">
-        <h2 className="services-statement" data-split>
+        <h2 className="services-statement no-select" data-split>
           Where strategy, design and technology <em>meet.</em>
         </h2>
       </header>
@@ -441,7 +441,7 @@ export default function Services() {
                 <span className="service-number" data-fade>
                   {number}
                 </span>
-                <h3 className="service-title" id={titleId} data-split>
+                <h3 className="service-title no-select" id={titleId} data-split>
                   {service.title}
                 </h3>
               </div>
@@ -452,7 +452,7 @@ export default function Services() {
                 </p>
 
                 <div className="service-capabilities" data-fade>
-                  <p className="service-label" id={`${titleId}-capabilities`}>
+                  <p className="service-label no-select" id={`${titleId}-capabilities`}>
                     Capabilities
                   </p>
                   <ul aria-labelledby={`${titleId}-capabilities`}>
@@ -463,7 +463,7 @@ export default function Services() {
                 </div>
 
                 <dl className="service-delivery" data-fade>
-                  <dt className="service-label">Delivery</dt>
+                  <dt className="service-label no-select">Delivery</dt>
                   <dd>{service.delivery}</dd>
                 </dl>
               </div>

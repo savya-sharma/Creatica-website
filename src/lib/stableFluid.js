@@ -255,12 +255,12 @@ export function createFluid(options) {
     depthWrite: false,
   });
   // the ink layer writes sRGB values straight to the canvas
-  const colA = new THREE.Color(options.colorA);
-  const colB = new THREE.Color(options.colorB);
-  colA.convertLinearToSRGB();
-  colB.convertLinearToSRGB();
-  display.uniforms.uColorA.value.set(colA.r, colA.g, colA.b);
-  display.uniforms.uColorB.value.set(colB.r, colB.g, colB.b);
+  const setTint = (uniform, hex) => {
+    const c = new THREE.Color(hex).convertLinearToSRGB();
+    uniform.value.set(c.r, c.g, c.b);
+  };
+  setTint(display.uniforms.uColorA, options.colorA);
+  setTint(display.uniforms.uColorB, options.colorB);
 
   const geometry = new THREE.PlaneGeometry(1, 1);
   const passQuad = new THREE.Mesh(geometry, mats.advect);
@@ -458,11 +458,14 @@ export function createFluid(options) {
       });
   }
 
-  // the ink layer's strengths, changeable while running
-  function setLook({ inkAlpha, bloom, sheen }) {
+  // the ink layer's strengths (and, optionally, its two tint colours),
+  // changeable while running
+  function setLook({ inkAlpha, bloom, sheen, colorA, colorB }) {
     display.uniforms.uAlpha.value = inkAlpha;
     display.uniforms.uBloom.value = bloom;
     display.uniforms.uSheen.value = sheen;
+    if (colorA) setTint(display.uniforms.uColorA, colorA);
+    if (colorB) setTint(display.uniforms.uColorB, colorB);
   }
 
   return { resize, step, warm, dispose, setLook, displayMesh, textUniforms, state };

@@ -15,7 +15,7 @@ function ServiceRow({ service, index }) {
       <div className="pricing-dir-row">
         <div className="pricing-dir-name">
           <span className="pricing-row-number">{String(index + 1).padStart(2, "0")}</span>
-          <h2 className="pricing-row-title">{service.name}</h2>
+          <h2 className="pricing-row-title no-select">{service.name}</h2>
         </div>
 
         <div className="pricing-dir-body">
@@ -27,7 +27,7 @@ function ServiceRow({ service, index }) {
             <span className="pricing-price-amount">{service.indicator}</span>
           </p>
           <Link
-            className="pricing-button btn-glass pricing-dir-cta"
+            className="pricing-button btn-glass pricing-dir-cta no-select"
             href={`/pricing/${service.slug}`}
             aria-label={`${service.cta ?? "Explore Pricing"}: ${service.name}`}
           >
